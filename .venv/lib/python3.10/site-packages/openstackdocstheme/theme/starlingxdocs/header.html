@@ -1,0 +1,40 @@
+{% if page_source_suffix %}{# an input file was read #}
+<!-- SOURCE_FILE: {% if giturl %}{{giturl}}/{% endif %}{{pagename}}{{page_source_suffix}} -->
+{% else %}{# a template was rendered directly #}
+<!-- TEMPLATE_NAME: {{pagename}} -->
+{% endif %}
+ {% include 'stx_search_install.html' %}
+<nav class="navbar navbar-default navbar-expand-md" role="navigation">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="brand-wrapper">
+      <a class="navbar-brand" href="https://www.starlingx.io/"></a>
+      <img src="{{ pathto('_static/images/logo-full.svg', 1) }}" width="135px" height="35px"/>
+    </div>
+    <button class="navbar-toggler" data-bs-target="#navbar-main-1" data-bs-toggle="collapse" type="button" aria-controls="navbar-main-1" type="button">
+      <span class="navbar-toggler-icon"></span>
+      <span class="sr-only">Toggle navigation</span>
+    </button>
+    <div class="search-icon show"><i class="fa fa-search"></i> Search</div>
+    <div class="collapse navbar-collapse" id="navbar-main-1">
+      {% include 'stx_search.html' %}
+      <ul class="nav navbar-nav navbar-main ms-auto mb-lg-0 justify-content-end show" role="navigation">
+        {% include 'stx_search_mobile.html' %}
+        <li class="nav-item">
+          <a href="https://docs.starlingx.io/" class="nav-link">Docs</a>
+        </li>
+        <li class="nav-item dropdown join-nav-section">
+          <a href="https://openinfra.dev/join/" class="nav-link dropdown-toggle" role="button" id="dropdownMenuJoin">Join</a>
+          <ul class="dropdown-menu" role="menu">
+            <li><a class="dropdown-item" href="https://openinfra.dev/join/">Sign up for Foundation Membership</a></li>
+            <li><a class="dropdown-item" href="https://openinfra.dev">More about the Foundation</a></li>
+          </ul>
+        </li>
+        <li class="nav-item">
+          <a href="https://www.openstack.org/Security/login/?BackURL=/home/" class="nav-link">Log In</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+  <!-- /.container -->
+</nav>
