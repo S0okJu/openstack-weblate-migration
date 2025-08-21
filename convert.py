@@ -59,17 +59,6 @@ def convert_pot_files(project_name):
         print("No POT files found to convert")
         return
     
-    print(f"Found {len(pot_files)} POT files:")
-    for pot_file in pot_files:
-        print(f"  - {pot_file}")
-        try:
-            po = polib.pofile(pot_file)
-            print(f"    File contains {len(po)} entries")
-            print(f"    Translated entries: {len([e for e in po if e.msgstr])}")
-            print(f"    Untranslated entries: {len([e for e in po if not e.msgstr and e.msgid])}")
-        except Exception as e:
-            print(f"    Error reading file: {e}")
-    
     # Convert each POT file
     for pot_file in pot_files:
         convert_pot_file(pot_file)

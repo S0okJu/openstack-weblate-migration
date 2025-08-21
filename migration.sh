@@ -5,11 +5,11 @@ WEBLATE_TOKEN="<token>"
 
 function setup_venv {
     if [ ! -d ".venv" ]; then
+        # >= 3.10
         python3.10 -m venv .venv
     fi
     
-    # Install bindep
-    .venv/bin/pip3 install bindep
+    .venv/bin/pip3 -r pre-requirements.txt
     
     # Remove existing requirements folder if it exists
     if [ -d "requirements" ]; then
@@ -22,9 +22,9 @@ function setup_venv {
     sudo apt install -y $(../.venv/bin/bindep -b)
     ../.venv/bin/pip3 install -r upper-constraints.txt
     
-    # Remove the requirements folder
     cd ..
     rm -rf requirements
+
 }
 
 function create_project {
@@ -44,7 +44,7 @@ function extract_messages_releasenotes {
     # 메세지 추출 
     cd ${PROJECT_NAME}
     
-    ../.venv/bin/pip3 install sphinx
+    # ../.venv/bin/pip3 install sphinx
     ../.venv/bin/sphinx-build -b gettext -d releasenotes/build/doctrees \
         releasenotes/source releasenotes/work
     cd ..
@@ -231,8 +231,8 @@ function main() {
     
     setup_venv
     # create_project $project_name
-    
-    # prepare_project $project_name
+
+    prepare_project $project_name
     generate_pot
     convert_pot_files
     # create_glossary $project_name
