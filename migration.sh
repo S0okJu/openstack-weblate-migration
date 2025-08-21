@@ -5,7 +5,7 @@ WEBLATE_TOKEN="<token>"
 
 function setup_venv {
     if [ ! -d ".venv" ]; then
-        python3 -m venv .venv
+        python3.10 -m venv .venv
     fi
     
     # Install bindep
@@ -229,7 +229,7 @@ function main() {
     # PROJECT_NAME 변수 설정
     PROJECT_NAME=$project_name
     
-    # setup_venv
+    setup_venv
     # create_project $project_name
     
     # prepare_project $project_name
