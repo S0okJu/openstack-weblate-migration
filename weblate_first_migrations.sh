@@ -1,7 +1,7 @@
 #!/bin/bash
 
 WEBLATE_URL="<WEBLATE_URL>"
-WEBLATE_TOKEN="<WEBLATE_TOKEN>"
+WEBLATE_TOKEN="WLU_<TOKEN>"
 
 SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -538,20 +538,28 @@ function main() {
     
     setup_venv
     
-    set_zanata_config $project_name
-    pull_zanata_project $project_name
+    # set_zanata_config $project_name
+    # pull_zanata_project $project_name
 
     create_or_get_project $project_name
     
-    extract_messages_releasenotes
+    # Check if releasenotes conf.py exists before extracting
+    if [ -f "${PROJECT_NAME}/releasenotes/source/conf.py" ]; then
+        echo "[INFO]: Found releasenotes conf.py, extracting messages..."
+        extract_messages_releasenotes
+    else
+        echo "[INFO]: No releasenotes conf.py found, skipping releasenotes extraction"
+    fi
+    
     extract_django_messages
     extract_python_messages
 
-    create_components $project_name
+    new_project_name=$( clean_slug "openstack/$project_name")
+    create_components $new_project_name
     
     if [ "$2" = "--migrate-zanata" ]; then
         echo "[INFO]: Starting Zanata migration..."
-        migrate_zanata_translations "$project_name" "master"
+        migrate_zanata_translations "$new_project_name" "master"
     else
         echo "[INFO]: Skipping Zanata migration (use --migrate-zanata to enable)"
     fi
