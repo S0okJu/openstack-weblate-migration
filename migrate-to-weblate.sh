@@ -33,15 +33,16 @@ log_error() {
 
 # ========================== Push translation to weblate =================
 
-
+# Parameters
 project_name=$1
+
+# TODO: Replace with actual values
+WEBLATE_URL="<weblate_url>"
+WEBLATE_TOKEN="<weblate_token>"
 
 SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 POT_PROJECT_PATH="$SCRIPTS_DIR/work/pot-works/$project_name"
 TRANSLATION_DIR="$SCRIPTS_DIR/work/translations"
-
-WEBLATE_URL="<weblate_url>"
-WEBLATE_TOKEN="<weblate_token>"
 
 function error_handling {
     local http_code=$1
