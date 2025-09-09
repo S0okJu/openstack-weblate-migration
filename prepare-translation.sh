@@ -313,30 +313,42 @@ case "$project_name" in
             api-site)
                 COMPONENTS+=("api-quick-start")
                 COMPONENTS+=("firstapp")
+
+                python3 $SCRIPTS_DIR/python/polib.py api-quick-start/locale/api-quick-start.pot
+                python3 $SCRIPTS_DIR/python/polib.py firstapp/locale/firstapp.pot
                 ;;
             security-doc)
                 COMPONENTS+=("security-guide")
+                python3 $SCRIPTS_DIR/python/polib.py security-guide/locale/security-guide.pot
                 ;;
             *)
                 COMPONENTS+=("doc")
+                python3 $SCRIPTS_DIR/python/polib.py doc/locale/doc.pot
+                # python3 $SCRIPTS_DIR/python/polib.py doc/locale/doc-$directory.pot
                 ;;
         esac
         if [[ -f releasenotes/source/conf.py ]]; then
             extract_messages_releasenotes
             COMPONENTS+=("releasenotes")
+            python3 $SCRIPTS_DIR/python/polib.py releasenotes/source/locale/releasenotes.pot
         fi
         ;;
     training-guides)
         setup_training_guides "$ZANATA_VERSION"
         COMPONENTS+=("doc")
+        python3 $SCRIPTS_DIR/python/polib.py doc/locale/doc.pot
+        # python3 $SCRIPTS_DIR/python/polib.py doc/locale/doc-$directory.pot
         ;;
     i18n)
         setup_i18n "$ZANATA_VERSION"
         COMPONENTS+=("doc")
+        python3 $SCRIPTS_DIR/python/polib.py doc/locale/doc.pot
+        # python3 $SCRIPTS_DIR/python/polib.py doc/locale/doc-$directory.pot
         ;;
     tripleo-ui)
         setup_reactjs_project "$project_name" "$ZANATA_VERSION"
         COMPONENTS+=("i18n")
+        python3 $SCRIPTS_DIR/python/polib.py i18n/locale/i18n.pot
         ;;
     *)
         # Common setup for python and django repositories
@@ -347,10 +359,12 @@ case "$project_name" in
             if [[ -f releasenotes/source/conf.py ]]; then
                 extract_messages_releasenotes
                 COMPONENTS+=("releasenotes")
+                python3 $SCRIPTS_DIR/python/polib.py releasenotes/source/locale/releasenotes.pot
             fi
             for modulename in $module_names; do
                 extract_messages_python "$modulename"
                 COMPONENTS+=("$modulename")
+                python3 $SCRIPTS_DIR/python/polib.py $modulename/locale/$modulename.pot
             done
         fi
 
@@ -361,10 +375,12 @@ case "$project_name" in
             if [[ -f releasenotes/source/conf.py ]]; then
                 extract_messages_releasenotes
                 COMPONENTS+=("releasenotes")
+                python3 $SCRIPTS_DIR/python/polib.py releasenotes/source/locale/releasenotes.pot
             fi
             for modulename in $module_names; do
                 extract_messages_django "$modulename"
                 COMPONENTS+=("$modulename")
+                python3 $SCRIPTS_DIR/python/polib.py $modulename/locale/$modulename.pot
             done
         fi
         # ---- Documentation ----
@@ -373,6 +389,8 @@ case "$project_name" in
             if [[ ${DOC_TARGETS[*]} =~ "$project_name" ]]; then
                 extract_messages_doc
                 COMPONENTS+=("doc")
+                python3 $SCRIPTS_DIR/python/polib.py doc/source/locale/doc.pot
+                # python3 $SCRIPTS_DIR/python/polib.py doc/source/locale/doc-$directory.pot
             fi
         fi
         ;;
