@@ -1,21 +1,18 @@
 #!/bin/bash
 
-# ========================== Parameters ==========================
-DOC_TARGETS=(
-    'contributor-guide',
-    'horizon',
-    'openstack-ansible',
-    'operations-guide',
-    'swift'
-)
-
 # We need a UTF-8 locale, set it properly in case it's not set.
 export LANG=en_US.UTF-8
 
 SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Source common functions
-source $SCRIPTS_DIR/workspace/dependencies/openstack-zuul-jobs/roles/prepare-zanata-client/files/common_translation_update.sh
+PREPARE_ZANATA_CLIENT_DIR="${DEPENDENCIES_DIR}/openstack-zuul-jobs/roles/prepare-zanata-client/files"
+
+# Use common_translation_update.sh
+# There are some function about generating pot files 
+source $PREPARE_ZANATA_CLIENT_DIR/common_translation_update.sh
+
+# Source propose-translation.sh for additional functions
+source $SCRIPTS_DIR/propose-translation.sh
 
 VENV_PYTHON="$SCRIPTS_DIR/.venv/bin/python3"
 VENV_PIP="$SCRIPTS_DIR/.venv/bin/pip3"
@@ -257,7 +254,6 @@ else
     skip_step_message "zanata-cli already exists"
 fi
 
-# Check zanata.ini file exists 
 show_step "Check zanata.ini file exists..."
 if [ -f "$HOME/.config/zanata.ini" ]; then
     skip_step_message "zanata.ini already exists"
@@ -293,17 +289,8 @@ fi
 
 cd $TARGET_PROJECT_DIR
 
-PREPARE_ZANATA_CLIENT_DIR="${DEPENDENCIES_DIR}/openstack-zuul-jobs/roles/prepare-zanata-client/files"
-
 ZANATA_VERSION="master"
 BRANCH="master"
-
-# Use common_translation_update.sh
-# There are some function about generating pot files 
-source $PREPARE_ZANATA_CLIENT_DIR/common_translation_update.sh
-
-# Source propose-translation.sh for additional functions
-source $SCRIPTS_DIR/propose-translation.sh
 
 # COMPONENTS is a list of components to be processed
 # It'll be used for Weblate component creation
@@ -683,6 +670,7 @@ function create_or_get_component {
 # Create glossary component at first
 # If glossary is not first, 
 # weblate automatically create a component as glossary in the first request.
+# TODO: Create glossary component at first not containing the COMPONENTS_TO_CREATE array.
 COMPONENTS_TO_CREATE=("glossary" "${COMPONENTS[@]}")
 
 for component in ${COMPONENTS_TO_CREATE[@]}; do
@@ -887,7 +875,6 @@ for component in ${COMPONENTS[@]}; do
         # Get the actual PO file path
         po_file=$(get_po_file_path $component $locale)
         
-        echo ""
         
         if [ -f "$po_file" ]; then
             create_translation $component $locale_name
@@ -898,7 +885,7 @@ for component in ${COMPONENTS[@]}; do
             
             sleep 3
         else
-            echo "DEBUG: PO file not found: $po_file"
+            fail_step_message "PO file not found: $po_file"
         fi
         
     done
