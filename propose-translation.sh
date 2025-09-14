@@ -6,6 +6,7 @@
 
 # Did not check percentage of translations
 function pull_from_zanata {
+
     zanata-cli -B -e pull
 }
 
@@ -37,7 +38,7 @@ function propose_training_guides {
     # cleanup_module "doc/upstream-training"
 
     # Add all changed files to git
-    git_add_po_files doc/upstream-training/source/locale
+    # git_add_po_files doc/upstream-training/source/locale
 }
 
 # Propose updates for i18n
@@ -47,10 +48,10 @@ function propose_i18n {
     pull_from_zanata "$PROJECT"
 
     # Cleanup po and pot files
-    cleanup_module "doc"
+    # cleanup_module "doc"
 
     # Add all changed files to git
-    git_add_po_files doc/source/locale
+    # git_add_po_files doc/source/locale
 }
 
 # Propose updates for python and django projects
@@ -70,24 +71,23 @@ function propose_python_django {
     # Now add all changed files to git.
     # Note we add them here to not have to differentiate in the functions
     # between new files and files already under git control.
-    git_add_po_files $modulename/locale
+    # git_add_po_files $modulename/locale
 
     # Cleanup po and pot files
-    cleanup_module "$modulename"
-    if [ "$version" == "master" ] ; then
-        # Remove not anymore translated log files on master, but not
-        # on released stable branches.
-        cleanup_log_files "$modulename"
-    fi
+    # cleanup_module "$modulename"
+    # if [ "$version" == "master" ] ; then
+    #     # Remove not anymore translated log files on master, but not
+    #     # on released stable branches.
+    #     cleanup_log_files "$modulename"
+    # fi
 
     # Check first whether directory exists, it might be missing if
     # there are no translations.
-    if [[ -d "$modulename/locale/" ]] ; then
-
-        # Some files were changed, add changed files again to git, so
-        # that we can run git diff properly.
-        git_add_po_files $modulename/locale
-    fi
+    # if [[ -d "$modulename/locale/" ]] ; then
+    #     # Some files were changed, add changed files again to git, so
+    #     # that we can run git diff properly.
+    #     # git_add_po_files $modulename/locale
+    # fi
 }
 
 
@@ -114,9 +114,9 @@ function handle_project_doc {
     # we start directly with generating .pot files
     extract_messages_doc
     # cleanup po and pot files
-    cleanup_module "doc"
+    # cleanup_module "doc"
     # Add all changed files to git
-    git_add_po_files doc/source/locale
+    # git_add_po_files doc/source/locale
 }
 
 # Rename existing Chinese locales in the project repository
@@ -223,9 +223,9 @@ function propose_releasenotes {
 
         # Add all changed files to git - if there are
         # translated files at all.
-        if [ -d releasenotes/source/locale/ ] ; then
-            git_add_po_files releasenotes/source/locale
-        fi
+        # if [ -d releasenotes/source/locale/ ] ; then
+        #     # git_add_po_files releasenotes/source/locale
+        # fi
     fi
 
     # Remove any releasenotes translations from stable branches, they
@@ -242,7 +242,7 @@ function propose_reactjs {
     pull_from_zanata "$PROJECT"
 
     # Clean up files (removes incomplete translations and untranslated strings)
-    cleanup_module "i18n"
+    # cleanup_module "i18n"
 
     # Convert po files to ReactJS i18n JSON format
     for lang in `find i18n/*.po -printf "%f\n" | sed 's/\.po$//'`; do

@@ -7,6 +7,7 @@ import sys
 import os
 import glob
 import polib
+from pathlib import Path
 
 def convert_pot_file(pot_file):
     """Convert a single POT file by copying msgid content to msgstr."""
@@ -41,36 +42,25 @@ def convert_pot_file(pot_file):
         import traceback
         traceback.print_exc()
 
-def convert_pot_files(project_name):
-    """Convert POT files for the given project."""
-    print(f"Converting POT files for project: {project_name}")
+def convert_pot_files(pot_file_path):
+    """Convert a single POT file."""
+    print(f"Converting POT file: {pot_file_path}")
     
-    locale_dir = f"{project_name}/locale"
-    print(f"Looking for locale directory: {locale_dir}")
-    if not os.path.exists(locale_dir):
-        print(f"Locale directory {locale_dir} does not exist")
-        return
-    print(f"Locale directory found: {locale_dir}")
-    
-    # Find all POT files
-    pot_files = glob.glob(f"{locale_dir}/*.pot")
-    
-    if not pot_files:
-        print("No POT files found to convert")
+    if not os.path.exists(pot_file_path):
+        print(f"POT file {pot_file_path} does not exist")
         return
     
-    # Convert each POT file
-    for pot_file in pot_files:
-        convert_pot_file(pot_file)
+    # Convert the POT file
+    convert_pot_file(pot_file_path)
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python3 convert.py <project_name>")
+        print("Usage: python3 polib.py <pot_file_path>")
         print("  Converts POT files by copying msgid content to msgstr")
         sys.exit(1)
     
-    project_name = sys.argv[1]
-    convert_pot_files(project_name)
+    pot_file_path = sys.argv[1]
+    convert_pot_files(pot_file_path)
 
 if __name__ == "__main__":
     main()
