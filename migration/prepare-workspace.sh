@@ -201,12 +201,19 @@ function prepare_project_workspace() {
     # Clone project
     module_name=$(echo $project | sed 's/-/_/g')
     if [ ! -d "$HOME/workspace/projects/$project/$project" ]; then
-        git clone https://opendev.org/openstack/$project $HOME/workspace/projects/$project/$project
-        git checkout $BRANCH_NAME
-        if [ $? -ne 0 ]; then
-            fail "The $BRANCH_NAME branch is not found in the $project project"
+        if ! git clone https://opendev.org/openstack/$project $HOME/workspace/projects/$project/$project; then
+            fail "Failed to clone project $project"
             return 1
         fi
+
+        cd $HOME/workspace/projects/$project/$project
+        if [ "$BRANCH_NAME" != "master" ]; then
+            if ! git checkout $BRANCH_NAME; then
+                fail "The $BRANCH_NAME branch is not found in the $project project"
+                return 1
+            fi
+        fi
+        cd - > /dev/null
         debug "Project $project cloned successfully"
     fi
 

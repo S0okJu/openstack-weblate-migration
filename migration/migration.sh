@@ -71,6 +71,9 @@ endstage
 stage "Generate POT files"
 source $HOME/workspace/.venv/bin/activate
 
+# Set target project directory for POT file generation
+export TARGET_PROJECT_DIR=$HOME/workspace/projects/$PROJECT
+
 cd $HOME/workspace/projects/$PROJECT/$PROJECT
 case "$PROJECT" in
     api-site|openstack-manuals|security-doc)
