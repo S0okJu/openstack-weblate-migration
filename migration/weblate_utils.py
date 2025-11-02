@@ -85,6 +85,8 @@ def get_filemask(component_name: str) -> str:
     else:
         return f'locale/*/LC_MESSAGES/{component_name}.po'
 
+def get_version_name(version: str) -> str:
+    return version.replace('/', '-')
 
 class WeblateConfig:
     """Object that stores Weblate configuration.
@@ -144,7 +146,7 @@ class WeblateUtils:
             return response
         except requests.exceptions.RequestException:
             print("[ERROR] Failed to get: ",
-                  json.dumps(response.json(), indent=4))
+                  json.dumps(response.json()))
             sys.exit(1)
 
     def _post(
@@ -187,7 +189,7 @@ class WeblateUtils:
             return response
         except requests.exceptions.RequestException:
             print("[ERROR] Failed to post: ",
-                  json.dumps(response.json(), indent=4))
+                  json.dumps(response.json()))
             sys.exit(1)
 
     def _build_category_list(self, project_name: str) -> dict:
@@ -222,7 +224,11 @@ class WeblateUtils:
         :returns: The id of the category
         """
         category_dict = self._build_category_list(project_name)
-        return category_dict[category_name]['id']
+        if not category_dict.get(get_version_name(category_name)):
+            print("[ERROR] Category does not exist: ", category_name)
+            sys.exit(1)
+        
+        return category_dict[get_version_name(category_name)]['id']
 
     def create_project(self, project_name: str) -> None:
         """Create a new project
@@ -252,7 +258,7 @@ class WeblateUtils:
             print("[DEBUG] Project created: ", project_name)
         else:
             print("[ERROR] Failed to create project: ",
-                  json.dumps(response.json(), indent=4))
+                  json.dumps(response.json()))
 
     def create_category(self, project_name: str, category_name: str) -> None:
         """Create a new category to specify the version.
@@ -264,14 +270,14 @@ class WeblateUtils:
         """
 
         category_dict = self._build_category_list(project_name)
-        is_exists = bool(category_dict.get(category_name))
+        is_exists = bool(category_dict.get(get_version_name(category_name)))
         if not is_exists:
             print("[DEBUG] Category does not exist: ", category_name)
 
             path = 'categories/'
             url = urljoin(self.base_url, path)
             data = {
-                'name': category_name,
+                'name': get_version_name(category_name),
                 'slug': sanitize_slug(category_name),
                 'project': urljoin(
                     self.base_url, f'projects/{sanitize_slug(project_name)}/'),
@@ -316,7 +322,7 @@ class WeblateUtils:
             print("[DEBUG] Glossary created.")
         else:
             print("[ERROR] Failed to create glossary: ",
-                  json.dumps(response.json(), indent=4))
+                  json.dumps(response.json()))
             sys.exit(1)
 
     def create_component(
@@ -386,7 +392,7 @@ class WeblateUtils:
             print("[DEBUG] Component created: ", component_name)
         else:
             print("[ERROR] Failed to create component: ",
-                  json.dumps(response.json(), indent=4))
+                  json.dumps(response.json()))
             sys.exit(1)
 
     def create_translation(
@@ -430,7 +436,7 @@ class WeblateUtils:
             print("[DEBUG] Translation created: ", locale)
         else:
             print("[ERROR] Failed to create translation: ",
-                  json.dumps(response.json(), indent=4))
+                  json.dumps(response.json()))
             sys.exit(1)
 
     def upload_po_file(
@@ -484,7 +490,7 @@ class WeblateUtils:
                 time.sleep(sleep_time)
 
         print("[DEBUG] Upload failed: ",
-              json.dumps(response.json(), indent=4))
+              json.dumps(response.json()))
 
     def check_accuracy(self, project_name: str, category_name: str, component_name: str, locale: str, po_path: str) -> None:
         path = (f'translations/{sanitize_slug(project_name)}/'
@@ -509,6 +515,22 @@ class WeblateUtils:
                 
         else:
             print("[ERROR] Failed to check accuracy: ", result.text)
+            
+    def lock_component(self, project_name: str, category_name: str, component_name: str) -> None:
+        path = (f'components/{sanitize_slug(project_name)}/'
+                f'{sanitize_slug(category_name)}%252F'
+                f'{sanitize_slug(component_name)}/lock/')
+        url = urljoin(self.base_url, path)
+        response = self._post(
+            url=url, 
+            data={
+                'lock': True,
+            },
+        )
+        if response.status_code == 200:
+            print("[DEBUG] Component locked: ", component_name)
+        else:
+            print("[ERROR] Failed to lock component: ", response.text)
          
 
 def setup_argument_parser():
@@ -582,43 +604,60 @@ def setup_argument_parser():
         '--locale', required=True, help='Name of the locale')
     check_accuracy_parser.add_argument(
         '--po-path', required=True, help='Path to the po file')
+    # Lock component command
+    lock_component_parser = subparser.add_parser(
+        'lock-component', help='Lock a component')
+    lock_component_parser.add_argument(
+        '--project', required=True, help='Name of the project')
+    lock_component_parser.add_argument(
+        '--category', required=True, help='Name of the category')
+    lock_component_parser.add_argument(
+        '--component', required=True, help='Name of the component')
     return parser
 
 
 def main():
     """Main entry point for the script."""
-    config = WeblateConfig()
-    utils = WeblateUtils(config)
+    try:
+        config = WeblateConfig()
+        utils = WeblateUtils(config)
 
-    parser = setup_argument_parser()
-    args = parser.parse_args()
+        parser = setup_argument_parser()
+        args = parser.parse_args()
 
-    if not args.command:
-        parser.print_help()
-        sys.exit(1)
-    if args.command == 'create-project':
-        utils.create_project(args.project)
-    elif args.command == 'create-category':
-        utils.create_category(args.project, args.category)
-    elif args.command == 'create-component':
-        utils.create_component(
-            args.project, args.category, args.component, args.pot_path)
-    elif args.command == 'create-glossary':
-        utils.create_glossary(args.project)
-    elif args.command == 'create-translation':
-        utils.create_translation(
-            args.project, args.category, args.component, args.locale)
-    elif args.command == 'upload-po-file':
-        utils.upload_po_file(
-            args.project, args.category, args.component, args.locale,
-            args.po_path)
-    elif args.command == 'check-accuracy':
-        utils.check_accuracy(
-            args.project, args.category, args.component, args.locale, args.po_path)
-    else:
-        parser.print_help()
-        sys.exit(1)
-
+        if not args.command:
+            parser.print_help()
+            sys.exit(1)
+        if args.command == 'create-project':
+            utils.create_project(args.project)
+        elif args.command == 'create-category':
+            utils.create_category(args.project, args.category)
+        elif args.command == 'create-component':
+            utils.create_component(
+                args.project, args.category, args.component, args.pot_path)
+        elif args.command == 'create-glossary':
+            utils.create_glossary(args.project)
+        elif args.command == 'create-translation':
+            utils.create_translation(
+                args.project, args.category, args.component, args.locale)
+        elif args.command == 'upload-po-file':
+            utils.upload_po_file(
+                args.project, args.category, args.component, args.locale,
+                args.po_path)
+        elif args.command == 'check-accuracy':
+            utils.check_accuracy(
+                args.project, args.category, args.component, args.locale, args.po_path)
+        elif args.command == 'lock-component':
+            utils.lock_component(args.project, args.category, args.component)
+        else:
+            parser.print_help()
+            sys.exit(1)
+    except Exception as e:
+        print("[ERROR] Failed to migrate: ")
+        error_message = str(e)
+        for line in error_message.split('\n'):
+            if line.strip():
+                print(f"[ERROR] {line}")
 
 if __name__ == "__main__":
     main()

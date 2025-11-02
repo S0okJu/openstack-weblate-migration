@@ -45,19 +45,16 @@ echo "프로젝트 파일: $LIST_FILE"
 echo "버전 파일: $VERSION_FILE"
 echo "====================="
 
-# 전체 카운터
 total_count=0
 
-# 프로젝트별로 반복
 while IFS= read -r project || [ -n "$project" ]; do   
     is_setup="true"
     echo "=== 프로젝트: $project ==="
-    # 빈 줄이나 공백만 있는 줄 건너뛰기
     if [[ -z "${project// }" ]]; then
         continue
     fi
     
-    # 앞뒤 공백 제거
+    mkdir -p logs/$project
     project=$(echo "$project" | xargs)
     
     echo ""
@@ -73,22 +70,39 @@ while IFS= read -r project || [ -n "$project" ]; do
         # 앞뒤 공백 제거
         version=$(echo "$version" | xargs)
         
+        # 버전 앞에 #가 있으면 IS_LOCKED=true, 없으면 IS_LOCKED=false
+        if [[ "$version" == \#* ]]; then
+            IS_LOCKED="true"
+            version="${version#\#}"  # 맨 앞의 # 제거
+        else
+            IS_LOCKED="false"
+        fi
+        
         ((total_count++))
-        echo "[$total_count] 처리 중: '$project' (버전: $version)"
+        echo "[$total_count] 처리 중: '$project' (버전: $version) [LOCKED: $IS_LOCKED]"
         
         # 로그 파일 경로 설정 (버전별로 구분)
-        LOG_FILE="logs/${project}_${version//\//_}.log"
+        LOG_FILE="logs/$project/migration.log"
+        ERROR_LOG="logs/$project/error.log"
         
         # migration.sh 실행하면서 로그 파일에 저장
-        echo "로그 저장 위치: $LOG_FILE"
-        if "$MIGRATION_SCRIPT" "$project" "$version" "$is_setup" 2>&1 | tee -a "$LOG_FILE"; then
+        
+        if "$MIGRATION_SCRIPT" "$project" "$version" "$is_setup" "$IS_LOCKED" 2>&1 | while IFS= read -r line; do
+            # migration.log에 버전 포함하여 저장
+            echo "$version | $line" | tee -a "$LOG_FILE"
+            # ERROR 라인이면 error.log에도 저장
+            if [[ "$line" == \[ERROR\]* ]]; then
+                echo "$version | $line" >> "$ERROR_LOG"
+            fi
+        done; then
             echo "[$total_count] 성공: '$project' (버전: $version)"
         else
             echo "[$total_count] 실패: '$project' (버전: $version) (종료 코드: $?)"
-            echo "실패했지만 계속 진행합니다..."
         fi
 
         is_setup="false"
+
+        sleep 15
         
         echo "---"
     done < "$VERSION_FILE"

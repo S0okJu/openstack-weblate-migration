@@ -208,8 +208,16 @@ function prepare_project_workspace() {
 
         cd $HOME/workspace/projects/$project/$project
         if [ "$BRANCH_NAME" != "master" ]; then
-            if ! git checkout $BRANCH_NAME; then
-                fail "The $BRANCH_NAME branch is not found in the $project project"
+            # IS_LOCKED가 true이면 stable을 unmaintained로 변경
+            CHECKOUT_BRANCH="$BRANCH_NAME"
+            if [ "$IS_LOCKED" == "true" ]; then
+                CHECKOUT_BRANCH="${BRANCH_NAME/stable/unmaintained}"
+                debug "IS_LOCKED is true, using unmaintained branch: $CHECKOUT_BRANCH"
+            fi
+            
+            if ! git checkout $CHECKOUT_BRANCH; then
+                cd - > /dev/null
+                fail "The $CHECKOUT_BRANCH branch is not found in the $project project"
                 return 1
             fi
         fi
@@ -217,17 +225,11 @@ function prepare_project_workspace() {
         debug "Project $project cloned successfully"
     fi
 
-    # Create pot directory
-    if [ ! -d "$HOME/workspace/projects/$project/pot" ]; then
-        mkdir -p $HOME/workspace/projects/$project/pot
-        debug "Pot directory created successfully"
-    fi
-
-    # Create translations directory
-    if [ ! -d "$HOME/workspace/projects/$project/translations" ]; then
-        mkdir -p $HOME/workspace/projects/$project/translations
-        debug "Translations directory created successfully"
-    fi
+    # Always create/ensure pot and translations directories exist
+    # (they may be deleted by cleanup in previous runs)
+    mkdir -p $HOME/workspace/projects/$project/pot
+    mkdir -p $HOME/workspace/projects/$project/translations
+    debug "Pot and translations directories created successfully"
 
     return 0
 }

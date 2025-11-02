@@ -17,6 +17,7 @@
 PROJECT=$1
 BRANCH_NAME=$2
 IS_SETUP=$3
+IS_LOCKED=$4
 
 # Replace /'s in branch names with -'s because Zanata doesn't
 # allow /'s in version names.
@@ -37,6 +38,7 @@ source $SCRIPTSDIR/setup-translation.sh
 
 # We need a UTF-8 locale, set it properly in case it's not set.
 export LANG=en_US.UTF-8
+
 export WEBLATE_URL="$WEBLATE_URL"
 export WEBLATE_TOKEN="$WEBLATE_TOKEN"
 
@@ -54,19 +56,22 @@ endstage
 
 
 stage "Prepare workspace"
-if ! prepare_workspace; then
-    exit 1
-fi
-prepare_project_workspace "$PROJECT"
-endstage
-
-stage "Setup environment"
 if [ "$IS_SETUP" == "true" ]; then
-    if ! setup_env; then
+    if ! prepare_workspace; then
         exit 1
     fi
 fi
+
+if ! prepare_project_workspace "$PROJECT"; then
+    exit 1
+fi
 endstage
+
+stage "Setup environment"
+
+if ! setup_env; then
+    exit 1
+fi
 
 stage "Generate POT files"
 source $HOME/workspace/.venv/bin/activate
@@ -315,10 +320,20 @@ for component in ${COMPONENTS[@]}; do
             --locale $locale \
             --po-path $translation_path
 
+    
     done
-done
+    
+    echo "[DEBUG] Locking component: $component [LOCKED: $IS_LOCKED]"
+    if [ "$IS_LOCKED" == "true" ]; then
+        python3 -u $SCRIPTSDIR/weblate_utils.py lock-component \
+            --project $PROJECT \
+            --category $BRANCHNAME \
+            --component $component
+    fi
 
+done
 endstage
 
+
 # clean up 
-rm -rf $HOME/workspace/projects/$PROJECT
+rm -rf $HOME/workspace/projects
