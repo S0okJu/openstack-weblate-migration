@@ -48,10 +48,15 @@ function setup_project {
     # and .venv
     local exclude='.*/**'
 
-    python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
+    if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
         -p $project -v $version --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale_with_underscore}/LC_MESSAGES/{filename}.po' \
-        -e "$exclude" -f $WORK_DIR/projects/$project/$project/zanata.xml
+        -e "$exclude" -f $WORK_DIR/projects/$project/$project/zanata.xml; then
+        
+        echo "[ERROR] Failed to create zanata.xml for $project"
+        exit 1
+    fi
+    echo "[INFO] zanata.xml created successfully for $project"
 }
 
 # Setup project manuals projects (api-site, openstack-manuals,
@@ -112,10 +117,14 @@ function setup_manuals {
         ZANATA_RULES="$ZANATA_RULES -r ./releasenotes/source/locale/releasenotes.pot releasenotes/source/locale/{locale_with_underscore}/LC_MESSAGES/releasenotes.po"
     fi
 
-    python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
+    if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
         -p $project -v $version --srcdir . --txdir . \
         $ZANATA_RULES -e "$EXCLUDE" \
-        -f $WORK_DIR/projects/$project/$project/zanata.xml
+        -f $WORK_DIR/projects/$project/$project/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $project"
+        exit 1
+    fi
+    echo "[INFO] zanata.xml created successfully for $project"
 }
 
 # Setup a training-guides project for Zanata
@@ -123,11 +132,15 @@ function setup_training_guides {
     local project=training-guides
     local version=${1:-master}
 
-    python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
+    if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
         -p $project -v $version \
         --srcdir doc/upstream-training/source/locale \
         --txdir doc/upstream-training/source/locale \
-        -f $WORK_DIR/projects/$project/$project/zanata.xml
+        -f $WORK_DIR/projects/$project/$project/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $project"
+        exit 1
+    fi
+    echo "[INFO] zanata.xml created successfully for $project"
 }
 
 # Setup a i18n project for Zanata
@@ -135,14 +148,15 @@ function setup_i18n {
     local project=i18n
     local version=${1:-master}
 
-    # Update the .pot file
-    tox -e generatepot
-
-    python3 $SCRIPTSDIR/create-zanata-xml.py \
+    if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
         -p $project -v $version \
         --srcdir doc/source/locale \
         --txdir doc/source/locale \
-        -f $WORK_DIR/projects/$project/$project/zanata.xml
+        -f $WORK_DIR/projects/$project/$project/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $project"
+        exit 1
+    fi
+    echo "[INFO] zanata.xml created successfully for $project"
 }
 
 # Setup a ReactJS project for Zanata
@@ -152,17 +166,13 @@ function setup_reactjs_project {
 
     local exclude='node_modules/**'
 
-    setup_nodeenv
-
-    # Extract messages
-    npm install
-    npm run build
-    # Transform them into .pot files
-    npm run json2pot
-
-    python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
+    if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
         -p $project -v $version --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale}.po' \
         -e "$exclude" \
-        -f $WORK_DIR/projects/$project/$project/zanata.xml
+        -f $WORK_DIR/projects/$project/$project/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $project"
+        exit 1
+    fi
+    echo "[INFO] zanata.xml created successfully for $project"
 }
