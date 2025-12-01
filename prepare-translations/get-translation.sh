@@ -22,5 +22,5 @@ function pull_translation_files {
     cd $PROJECT_DIR
 
     # Pull all translation files(po, pot) from Zanata
-    zanata-cli -B -e pull --pull-type both --src-dir $POT_DIR --tx-dir $TRANSLATION_DIR
+    zanata-cli -B -e pull --pull-type both --src-dir $POT_DIR --trans-dir $TRANSLATION_DIR
 }
