@@ -26,7 +26,7 @@ COMPONENTS=()
 
 SCRIPTSDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source $SCRIPTSDIR/setup_env/setup.sh
-source $SCRIPTSDIR/get-zanata-xml.sh
+source $SCRIPTSDIR/prepare-zanata-xml/get-zanata-xml.sh
 
 # We need a UTF-8 locale, set it properly in case it's not set.
 export LANG=en_US.UTF-8

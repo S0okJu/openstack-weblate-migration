@@ -23,7 +23,7 @@ function create_python_venv() {
 
     # create venv
     if [ ! -d "$WORK_DIR/.venv" ]; then
-        python3 -m venv "$WORK_DIR/.venv" >/dev/null 2>&1
+        python3 -m venv "$WORK_DIR/.venv" 2>&1
         if [ $? -ne 0 ]; then
             echo "[ERROR] Failed to create virtual environment"
             return 1

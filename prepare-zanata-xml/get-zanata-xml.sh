@@ -26,11 +26,13 @@ function clone_project() {
     # Even if the project is already cloned,
     # we need to checkout the version.
     cd $WORK_DIR/projects/$project
-    if ! git checkout $version; then
-        echo "[ERROR] Failed to checkout $version version"
-        return 1
+    if [ "$version" != "master" ]; then
+        if ! git checkout $version; then
+            echo "[ERROR] Failed to checkout $version version"
+            return 1
+        fi
     fi
-    echo "[INFO] $PROJECT: Checked out $version version"
+    echo "[INFO] $project: Checked out $version version"
     cd - > /dev/null
 
     return 0
@@ -46,7 +48,7 @@ function setup_project {
     # and .venv
     local exclude='.*/**'
 
-    python3 $WORK_DIR/prepare-zanata-xml/create-zanata-xml.py \
+    python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
         -p $project -v $version --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale_with_underscore}/LC_MESSAGES/{filename}.po' \
         -e "$exclude" -f $WORK_DIR/projects/$project/$project/zanata.xml
@@ -110,7 +112,7 @@ function setup_manuals {
         ZANATA_RULES="$ZANATA_RULES -r ./releasenotes/source/locale/releasenotes.pot releasenotes/source/locale/{locale_with_underscore}/LC_MESSAGES/releasenotes.po"
     fi
 
-    python3 $WORK_DIR/prepare-zanata-xml/create-zanata-xml.py \
+    python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
         -p $project -v $version --srcdir . --txdir . \
         $ZANATA_RULES -e "$EXCLUDE" \
         -f $WORK_DIR/projects/$project/$project/zanata.xml
@@ -121,7 +123,7 @@ function setup_training_guides {
     local project=training-guides
     local version=${1:-master}
 
-    python3 $WORK_DIR/prepare-zanata-xml/create-zanata-xml.py \
+    python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
         -p $project -v $version \
         --srcdir doc/upstream-training/source/locale \
         --txdir doc/upstream-training/source/locale \
@@ -158,7 +160,7 @@ function setup_reactjs_project {
     # Transform them into .pot files
     npm run json2pot
 
-    python3 $WORK_DIR/prepare-zanata-xml/create-zanata-xml.py \
+    python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
         -p $project -v $version --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale}.po' \
         -e "$exclude" \
