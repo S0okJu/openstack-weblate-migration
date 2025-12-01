@@ -14,9 +14,13 @@
 # under the License.
 
 WORK_DIR="$HOME/$WORKSPACE_NAME"
-function get_po_pot_files {
-    local project=$1
-    cd $WORK_DIR/projects/$project/$project
+PROJECT_DIR="$WORK_DIR/projects/$PROJECT/$PROJECT"
+POT_DIR="$WORK_DIR/projects/$PROJECT/pot"
+TRANSLATION_DIR="$WORK_DIR/projects/$PROJECT/translations"
 
-    zanata-cli -B -e pull --pull-type both
+function pull_translation_files {
+    cd $PROJECT_DIR
+
+    # Pull all translation files(po, pot) from Zanata
+    zanata-cli -B -e pull --pull-type both --src-dir $POT_DIR --tx-dir $TRANSLATION_DIR
 }

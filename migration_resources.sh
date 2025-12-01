@@ -75,4 +75,4 @@ case $PROJECT in
         ;;
 esac
 
-get_po_pot_files "$PROJECT"
+pull_translation_files
