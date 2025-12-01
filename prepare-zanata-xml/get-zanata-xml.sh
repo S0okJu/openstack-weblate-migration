@@ -14,25 +14,24 @@
 # under the License.
 
 WORK_DIR="$HOME/$WORKSPACE_NAME"
+CLONED_PROJECT_DIR="$WORK_DIR/projects/$PROJECT/$PROJECT"
 
 function clone_project() {
-    local project=$1
-    local version=$2
 
-    cd $WORK_DIR/projects/$project
-    if [ ! -d "$WORK_DIR/$project" ]; then
-        git clone https://opendev.org/openstack/$project
+    cd $WORK_DIR/projects/$PROJECT
+    if [ ! -d "$WORK_DIR/$PROJECT" ]; then
+        git clone https://opendev.org/openstack/$PROJECT
     fi
 
     # Even if the project is already cloned,
     # we need to checkout the version.
-    if [ "$version" != "master" ]; then
-        if ! git checkout $version; then
-            echo "[ERROR] Failed to checkout $version version"
+    if [ "$ZANATA_VERSION" != "master" ]; then
+        if ! git checkout $ZANATA_VERSION; then
+            echo "[ERROR] Failed to checkout $ZANATA_VERSION version"
             return 1
         fi
     fi
-    echo "[INFO] $project: Checked out $version version"
+    echo "[INFO] $PROJECT: Checked out $ZANATA_VERSION version"
     cd - > /dev/null
 
     return 0
@@ -41,30 +40,24 @@ function clone_project() {
 # Setup a project for Zanata. This is used by both Python and Django projects.
 # syntax: setup_project <project> <zanata_version>
 function setup_project {
-    local project=$1
-    local version=$2
-
     # Exclude all dot-files, particuarly for things such such as .tox
     # and .venv
     local exclude='.*/**'
 
     if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
-        -p $project -v $version --srcdir . --txdir . \
+        -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale_with_underscore}/LC_MESSAGES/{filename}.po' \
-        -e "$exclude" -f $WORK_DIR/projects/$project/$project/zanata.xml; then
+        -e "$exclude" -f $CLONED_PROJECT_DIR/zanata.xml; then
         
-        echo "[ERROR] Failed to create zanata.xml for $project"
+        echo "[ERROR] Failed to create zanata.xml for $PROJECT"
         exit 1
     fi
-    echo "[INFO] zanata.xml created successfully for $project"
+    echo "[INFO] zanata.xml created successfully for $PROJECT"
 }
 
 # Setup project manuals projects (api-site, openstack-manuals,
 # security-guide) for Zanata
 function setup_manuals {
-    local project=$1
-    local version=${2:-master}
-
     # Fill in associative array SPECIAL_BOOKS
     declare -A SPECIAL_BOOKS
     source doc-tools-check-languages.conf
@@ -113,66 +106,57 @@ function setup_manuals {
     done
 
     # Project setup and updating POT files for release notes.
-    if [[ $project == "openstack-manuals" ]] && [[ $version == "master" ]]; then
+    if [[ $PROJECT == "openstack-manuals" ]] && [[ $ZANATA_VERSION == "master" ]]; then
         ZANATA_RULES="$ZANATA_RULES -r ./releasenotes/source/locale/releasenotes.pot releasenotes/source/locale/{locale_with_underscore}/LC_MESSAGES/releasenotes.po"
     fi
 
     if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
-        -p $project -v $version --srcdir . --txdir . \
+        -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         $ZANATA_RULES -e "$EXCLUDE" \
-        -f $WORK_DIR/projects/$project/$project/zanata.xml; then
-        echo "[ERROR] Failed to create zanata.xml for $project"
+        -f $WORK_DIR/projects/$PROJECT/$PROJECT/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $PROJECT"
         exit 1
     fi
-    echo "[INFO] zanata.xml created successfully for $project"
+    echo "[INFO] zanata.xml created successfully for $PROJECT"
 }
 
 # Setup a training-guides project for Zanata
 function setup_training_guides {
-    local project=training-guides
-    local version=${1:-master}
-
     if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
-        -p $project -v $version \
+        -p $PROJECT -v $ZANATA_VERSION \
         --srcdir doc/upstream-training/source/locale \
         --txdir doc/upstream-training/source/locale \
-        -f $WORK_DIR/projects/$project/$project/zanata.xml; then
-        echo "[ERROR] Failed to create zanata.xml for $project"
+        -f $CLONED_PROJECT_DIR/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $PROJECT"
         exit 1
     fi
-    echo "[INFO] zanata.xml created successfully for $project"
+    echo "[INFO] zanata.xml created successfully for $PROJECT"
 }
 
 # Setup a i18n project for Zanata
 function setup_i18n {
-    local project=i18n
-    local version=${1:-master}
-
     if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
-        -p $project -v $version \
+        -p $PROJECT -v $ZANATA_VERSION \
         --srcdir doc/source/locale \
         --txdir doc/source/locale \
-        -f $WORK_DIR/projects/$project/$project/zanata.xml; then
-        echo "[ERROR] Failed to create zanata.xml for $project"
+        -f $CLONED_PROJECT_DIR/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $PROJECT"
         exit 1
     fi
-    echo "[INFO] zanata.xml created successfully for $project"
+    echo "[INFO] zanata.xml created successfully for $PROJECT"
 }
 
 # Setup a ReactJS project for Zanata
 function setup_reactjs_project {
-    local project=$1
-    local version=$2
-
     local exclude='node_modules/**'
 
     if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
-        -p $project -v $version --srcdir . --txdir . \
+        -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale}.po' \
         -e "$exclude" \
-        -f $WORK_DIR/projects/$project/$project/zanata.xml; then
-        echo "[ERROR] Failed to create zanata.xml for $project"
+        -f $CLONED_PROJECT_DIR/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $PROJECT"
         exit 1
     fi
-    echo "[INFO] zanata.xml created successfully for $project"
+    echo "[INFO] zanata.xml created successfully for $PROJECT"
 }

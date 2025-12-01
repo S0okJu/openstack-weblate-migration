@@ -59,19 +59,19 @@ fi
 
 case $PROJECT in
     api-site|openstack-manuals|security-doc)
-        setup_manuals "$PROJECT" "$ZANATA_VERSION"
+        setup_manuals 
         ;;
     i18n)
-        setup_i18n "$PROJECT" "$ZANATA_VERSION"
+        setup_i18n
         ;;
     training-guides)
-        setup_training_guides "$PROJECT" "$ZANATA_VERSION"
+        setup_training_guides
         ;;
     tripleo-ui)
-        setup_reactjs_project "$PROJECT" "$ZANATA_VERSION"
+        setup_reactjs_project
         ;;
     *)
-        setup_project "$PROJECT" "$ZANATA_VERSION"
+        setup_project
         ;;
 esac
 
