@@ -19,13 +19,13 @@ function clone_project() {
     local project=$1
     local version=$2
 
-    if [ ! -d "$WORK_DIR/projects/$project" ]; then
-        git clone https://opendev.org/openstack/$project $WORK_DIR/projects/$project
+    cd $WORK_DIR/projects/$project
+    if [ ! -d "$WORK_DIR/$project" ]; then
+        git clone https://opendev.org/openstack/$project
     fi
 
     # Even if the project is already cloned,
     # we need to checkout the version.
-    cd $WORK_DIR/projects/$project
     if [ "$version" != "master" ]; then
         if ! git checkout $version; then
             echo "[ERROR] Failed to checkout $version version"

@@ -199,5 +199,5 @@ class ProjectConfig(object):
         """
         try:
             xml.write(self.xmlfile, pretty_print=True)
-        except IOError:
-            raise ValueError('Error writing zanata.xml.')
+        except IOError as e:
+            raise ValueError('Error writing zanata.xml to %s: %s' % (self.xmlfile, str(e)))
