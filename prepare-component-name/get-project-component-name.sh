@@ -20,7 +20,7 @@ DOC_TARGETS=('contributor-guide'
              'openstack-ansible'
              'operations-guide',
              'swift')
-             
+
 function get_python_component_names {
     local components=()
     local module_names
@@ -99,7 +99,9 @@ function get_doc_component_names {
 
     if [[ -f $PROJECT_DIR/doc/source/conf.py ]]; then
         if [[ ${DOC_TARGETS[*]} =~ "$PROJECT" ]]; then
-            components+=("doc")
+            if [[ -f $POT_DIR/doc/source/locale/doc.pot ]]; then
+                components+=("doc")
+            fi
 
             for doc_pot_file in $POT_DIR/doc/source/locale/doc-*.pot; do
                 if [[ -f "$doc_pot_file" ]]; then
