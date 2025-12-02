@@ -57,22 +57,53 @@ if ! clone_project "$PROJECT" "$ZANATA_VERSION"; then
     exit 1
 fi
 
+PROJECT_DIR=$HOME/workspace/projects/$PROJECT/$PROJECT
+TRANSLATIONS_DIR=$PROJECT_DIR/translations
+POT_DIR=$PROJECT_DIR/pot
+
+cd $PROJECT_DIR
 case $PROJECT in
-    api-site|openstack-manuals|security-doc)
-        setup_manuals 
+    api-site)
+        setup_manuals
+        pull_translation_files
+        COMPONENTS+=("api-quick-start")
+        COMPONENTS+=("firstapp")
+        ;;
+    
+    security-doc)
+        setup_manuals
+        pull_translation_files
+        COMPONENTS+=("security-guide")
+        ;;
+    openstack-manuals)
+        setup_manuals
+        pull_translation_files
+        COMPONENTS+=("doc")
         ;;
     i18n)
         setup_i18n
+        pull_translation_files
+        COMPONENTS+=("doc")
         ;;
     training-guides)
         setup_training_guides
+        pull_translation_files
+        COMPONENTS+=("doc")
         ;;
     tripleo-ui)
         setup_reactjs_project
+        pull_translation_files
+        COMPONENTS+=("i18n")
         ;;
     *)
         setup_project
+        pull_translation_files
+        
+        cd $POT_DIR
+        COMPONENTS+=($(get_python_component_names))
+        COMPONENTS+=($(get_django_component_names))
+        COMPONENTS+=($(get_doc_component_names))
         ;;
 esac
 
-pull_translation_files
+echo "[INFO] Components to make: ${COMPONENTS[@]}"

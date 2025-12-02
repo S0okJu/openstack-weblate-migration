@@ -1,0 +1,110 @@
+#!/bin/bash
+# Get component names from project modules.
+
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+function get_python_component_names {
+    local components=()
+    local module_names
+
+    module_names=$(python3 $SCRIPTSDIR/get-modulename.py -p $PROJECT -t python -f setup.cfg)
+    if [ -n "$module_names" ]; then
+        if [ -f releasenotes/source/conf.py ]; then
+            components+=("releasenotes")
+        fi
+        for modulename in $module_names; do
+            components+=("$modulename")
+        done
+    fi
+    
+    echo "${components[@]}"
+}
+
+function get_django_component_names {
+    local components=()
+    local module_names
+    local django_module_names
+    local is_multiple
+    local dest_modulename
+    local module_name_hyphenated
+
+    module_names=$(python3 $SCRIPTSDIR/get-modulename.py -p $PROJECT -t django -f setup.cfg)
+    echo "[DEBUG] Django module names: $module_names"
+    
+    # Convert array for proper counting
+    # In Weblate, we can't use multiple components name in a project.
+    # If it has multiple Django modules, we set name <module_name>-django/djangojs
+    # to identify the module in weblate. 
+    # e.g. horizon-django, openstack-dashboard-django
+    django_module_names=($module_names)
+
+    if [ ${#django_module_names[@]} -ge 2 ]; then
+        is_multiple=true
+    else
+        is_multiple=false
+    fi
+
+    if [ -n "$module_names" ]; then
+        if [[ -f releasenotes/source/conf.py ]]; then
+            components+=("releasenotes")
+        fi
+
+        # Check if the project has multiple Django modules
+        # If it has, we set name <module_name>-django/djangojs
+        for modulename in ${django_module_names[@]}; do
+            if [ -f "$modulename/locale/django.pot" ]; then
+                dest_modulename="django"
+                if [ "$is_multiple" == "true" ]; then
+                    # The module name basically use _ as separator.
+                    # In weblate, we need to use -.
+                    module_name_hyphenated=$(echo "$modulename" | sed 's/_/-/g')
+                    dest_modulename="${module_name_hyphenated}-django"
+                fi
+
+                components+=("$dest_modulename")
+            fi
+
+            if [ -f "$modulename/locale/djangojs.pot" ]; then
+                dest_modulename="djangojs"
+                if [ "$is_multiple" == "true" ]; then
+                    module_name_hyphenated=$(echo "$modulename" | sed 's/_/-/g')
+                    dest_modulename="${module_name_hyphenated}-djangojs"
+                fi
+                components+=("$dest_modulename")
+            fi
+        done
+    fi
+
+    echo "${components[@]}"
+}
+
+function get_doc_component_names {
+    local components=()
+    local doc_component_name
+
+    if [[ -f doc/source/conf.py ]]; then
+        # Let's test this with some repos :)
+        if [[ ${DOC_TARGETS[*]} =~ "$PROJECT" ]]; then
+            components+=("doc")
+
+            for doc_pot_file in doc/source/locale/doc-*.pot; do
+                if [[ -f "$doc_pot_file" ]]; then
+                    doc_component_name=$(basename "$doc_pot_file" .pot)
+                    components+=("$doc_component_name")
+                fi
+            done
+        fi
+    fi
+
+    echo "${components[@]}"
+}
