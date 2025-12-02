@@ -13,13 +13,17 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+PROJECT_DIR=$HOME/$WORKSPACE_NAME/projects/$PROJECT/$PROJECT
+POT_DIR=$HOME/$WORKSPACE_NAME/projects/$PROJECT/pot
+
 function get_python_component_names {
     local components=()
     local module_names
 
-    module_names=$(python3 $SCRIPTSDIR/get-modulename.py -p $PROJECT -t python -f setup.cfg)
+    module_names=$(python3 $SCRIPTSDIR/prepare-component-name/get-modulename.py -p $PROJECT -t python -f setup.cfg)
+
     if [ -n "$module_names" ]; then
-        if [ -f releasenotes/source/conf.py ]; then
+        if [ -f $PROJECT_DIR/releasenotes/source/conf.py ]; then
             components+=("releasenotes")
         fi
         for modulename in $module_names; do
@@ -38,7 +42,7 @@ function get_django_component_names {
     local dest_modulename
     local module_name_hyphenated
 
-    module_names=$(python3 $SCRIPTSDIR/get-modulename.py -p $PROJECT -t django -f setup.cfg)
+    module_names=$(python3 $SCRIPTSDIR/prepare-component-name/get-modulename.py -p $PROJECT -t django -f setup.cfg)
     echo "[DEBUG] Django module names: $module_names"
     
     # Convert array for proper counting
@@ -55,14 +59,14 @@ function get_django_component_names {
     fi
 
     if [ -n "$module_names" ]; then
-        if [[ -f releasenotes/source/conf.py ]]; then
+        if [[ -f $PROJECT_DIR/releasenotes/source/conf.py ]]; then
             components+=("releasenotes")
         fi
 
         # Check if the project has multiple Django modules
         # If it has, we set name <module_name>-django/djangojs
         for modulename in ${django_module_names[@]}; do
-            if [ -f "$modulename/locale/django.pot" ]; then
+            if [ -f "$POT_DIR/$modulename/locale/django.pot" ]; then
                 dest_modulename="django"
                 if [ "$is_multiple" == "true" ]; then
                     # The module name basically use _ as separator.
@@ -74,7 +78,7 @@ function get_django_component_names {
                 components+=("$dest_modulename")
             fi
 
-            if [ -f "$modulename/locale/djangojs.pot" ]; then
+            if [ -f "$POT_DIR/$modulename/locale/djangojs.pot" ]; then
                 dest_modulename="djangojs"
                 if [ "$is_multiple" == "true" ]; then
                     module_name_hyphenated=$(echo "$modulename" | sed 's/_/-/g')
@@ -92,12 +96,12 @@ function get_doc_component_names {
     local components=()
     local doc_component_name
 
-    if [[ -f doc/source/conf.py ]]; then
+    if [[ -f $PROJECT_DIR/doc/source/conf.py ]]; then
         # Let's test this with some repos :)
         if [[ ${DOC_TARGETS[*]} =~ "$PROJECT" ]]; then
             components+=("doc")
 
-            for doc_pot_file in doc/source/locale/doc-*.pot; do
+            for doc_pot_file in $POT_DIR/doc/source/locale/doc-*.pot; do
                 if [[ -f "$doc_pot_file" ]]; then
                     doc_component_name=$(basename "$doc_pot_file" .pot)
                     components+=("$doc_component_name")

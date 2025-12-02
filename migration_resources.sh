@@ -28,6 +28,7 @@ SCRIPTSDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source $SCRIPTSDIR/setup_env/setup.sh
 source $SCRIPTSDIR/prepare-zanata-xml/get-zanata-xml.sh
 source $SCRIPTSDIR/prepare-translations/get-translation.sh
+source $SCRIPTSDIR/prepare-component-name/get-project-component-name.sh
 
 # We need a UTF-8 locale, set it properly in case it's not set.
 export LANG=en_US.UTF-8
@@ -57,11 +58,6 @@ if ! clone_project "$PROJECT" "$ZANATA_VERSION"; then
     exit 1
 fi
 
-PROJECT_DIR=$HOME/workspace/projects/$PROJECT/$PROJECT
-TRANSLATIONS_DIR=$PROJECT_DIR/translations
-POT_DIR=$PROJECT_DIR/pot
-
-cd $PROJECT_DIR
 case $PROJECT in
     api-site)
         setup_manuals
@@ -99,11 +95,10 @@ case $PROJECT in
         setup_project
         pull_translation_files
         
-        cd $POT_DIR
         COMPONENTS+=($(get_python_component_names))
         COMPONENTS+=($(get_django_component_names))
         COMPONENTS+=($(get_doc_component_names))
         ;;
 esac
 
-echo "[INFO] Components to make: ${COMPONENTS[@]}"
+echo "[INFO] Components to migrate: ${COMPONENTS[@]}"
