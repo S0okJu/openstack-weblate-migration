@@ -15,6 +15,8 @@
 
 PROJECT_DIR=$HOME/$WORKSPACE_NAME/projects/$PROJECT/$PROJECT
 POT_DIR=$HOME/$WORKSPACE_NAME/projects/$PROJECT/pot
+
+# List of the projects that have doc component.
 DOC_TARGETS=('contributor-guide'
              'horizon'
              'openstack-ansible'
@@ -98,6 +100,7 @@ function get_doc_component_names {
     local doc_component_name
 
     if [[ -f $PROJECT_DIR/doc/source/conf.py ]]; then
+        # Check if the project is in the DOC_TARGETS list.
         if [[ ${DOC_TARGETS[*]} =~ "$PROJECT" ]]; then
             if [[ -f $POT_DIR/doc/source/locale/doc.pot ]]; then
                 components+=("doc")
