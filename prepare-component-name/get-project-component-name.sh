@@ -40,7 +40,6 @@ function get_django_component_names {
     local module_name_hyphenated
 
     module_names=$(python3 $SCRIPTSDIR/prepare-component-name/get-modulename.py -p $PROJECT -t django -f setup.cfg)
-    echo "[DEBUG] Django module names: $module_names"
     
     # Convert array for proper counting
     # In Weblate, we can't use multiple components name in a project.
