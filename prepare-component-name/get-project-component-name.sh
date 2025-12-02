@@ -15,7 +15,12 @@
 
 PROJECT_DIR=$HOME/$WORKSPACE_NAME/projects/$PROJECT/$PROJECT
 POT_DIR=$HOME/$WORKSPACE_NAME/projects/$PROJECT/pot
-
+DOC_TARGETS=('contributor-guide'
+             'horizon'
+             'openstack-ansible'
+             'operations-guide',
+             'swift')
+             
 function get_python_component_names {
     local components=()
     local module_names
