@@ -26,9 +26,6 @@ function get_python_component_names {
         if [ -f $PROJECT_DIR/releasenotes/source/conf.py ]; then
             components+=("releasenotes")
         fi
-        for modulename in $module_names; do
-            components+=("$modulename")
-        done
     fi
     
     echo "${components[@]}"
@@ -97,7 +94,6 @@ function get_doc_component_names {
     local doc_component_name
 
     if [[ -f $PROJECT_DIR/doc/source/conf.py ]]; then
-        # Let's test this with some repos :)
         if [[ ${DOC_TARGETS[*]} =~ "$PROJECT" ]]; then
             components+=("doc")
 

@@ -101,4 +101,12 @@ case $PROJECT in
         ;;
 esac
 
+# In bash script, it did not handle duplication.
+# So we need to delete duplicated components.
+if [ ${#COMPONENTS[@]} -eq 0 ]; then
+    fail "No components to process"
+    exit 1
+fi
 echo "[INFO] Components to migrate: ${COMPONENTS[@]}"
+
+echo "[INFO] Create Weblate components"
