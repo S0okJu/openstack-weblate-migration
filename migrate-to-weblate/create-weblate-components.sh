@@ -28,7 +28,6 @@ function create_weblate_components {
     for component in ${COMPONENTS[@]}; do
         pot_path=$(get_pot_path $component)
 
-        python3 -u $SCRIPTSDIR/migrate-to-weblate/lang_plural_check.py $pot_path
         python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py create-component \
             --project $PROJECT \
             --category $BRANCHNAME \
