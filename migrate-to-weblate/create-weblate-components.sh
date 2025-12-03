@@ -23,7 +23,7 @@ function create_weblate_components {
     # Create global glossary for the project
     python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py create-glossary --project $PROJECT || exit 1
     # Create category with the branch name
-    python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py create-category --project $PROJECT --category $BRANCHNAME || exit 1
+    python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py create-category --project $PROJECT --category $ZANATA_VERSION || exit 1
     # Create components with the pot file for Weblate component initialization.
     for component in ${COMPONENTS[@]}; do
         pot_path=$(get_pot_path $component)
