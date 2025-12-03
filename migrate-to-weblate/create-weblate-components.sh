@@ -30,7 +30,7 @@ function create_weblate_components {
 
         python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py create-component \
             --project $PROJECT \
-            --category $BRANCHNAME \
+            --category $ZANATA_VERSION \
             --component $component \
             --pot-path $pot_path || exit 1
     done
@@ -44,7 +44,7 @@ function create_weblate_components {
 
             python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py create-translation \
                 --project $PROJECT \
-                --category $BRANCHNAME \
+                --category $ZANATA_VERSION \
                 --component $component \
                 --locale $locale 
             sleep 10
@@ -55,7 +55,7 @@ function create_weblate_components {
             echo "[DEBUG] Uploading PO filse: $translation_path"
             python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py upload-po-file \
                 --project $PROJECT \
-                --category $BRANCHNAME \
+                --category $ZANATA_VERSION \
                 --component $component \
                 --locale $locale \
                 --po-path $translation_path
