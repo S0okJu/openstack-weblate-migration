@@ -516,23 +516,6 @@ class WeblateUtils:
         else:
             print("[ERROR] Failed to check accuracy: ", result.text)
             
-    def lock_component(self, project_name: str, category_name: str, component_name: str) -> None:
-        path = (f'components/{sanitize_slug(project_name)}/'
-                f'{sanitize_slug(category_name)}%252F'
-                f'{sanitize_slug(component_name)}/lock/')
-        url = urljoin(self.base_url, path)
-        response = self._post(
-            url=url, 
-            data={
-                'lock': True,
-            },
-        )
-        if response.status_code == 200:
-            print("[DEBUG] Component locked: ", component_name)
-        else:
-            print("[ERROR] Failed to lock component: ", response.text)
-         
-
 def setup_argument_parser():
     """Setup command line argument parser with subcommands."""
     parser = argparse.ArgumentParser(
@@ -604,15 +587,6 @@ def setup_argument_parser():
         '--locale', required=True, help='Name of the locale')
     check_accuracy_parser.add_argument(
         '--po-path', required=True, help='Path to the po file')
-    # Lock component command
-    lock_component_parser = subparser.add_parser(
-        'lock-component', help='Lock a component')
-    lock_component_parser.add_argument(
-        '--project', required=True, help='Name of the project')
-    lock_component_parser.add_argument(
-        '--category', required=True, help='Name of the category')
-    lock_component_parser.add_argument(
-        '--component', required=True, help='Name of the component')
     return parser
 
 

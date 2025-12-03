@@ -29,6 +29,7 @@ source $SCRIPTSDIR/setup_env/setup.sh
 source $SCRIPTSDIR/prepare-zanata-xml/get-zanata-xml.sh
 source $SCRIPTSDIR/prepare-translations/get-translation.sh
 source $SCRIPTSDIR/prepare-component-name/get-project-component-name.sh
+source $SCRIPTSDIR/migrate-to-weblate/create-weblate-components.sh
 
 # We need a UTF-8 locale, set it properly in case it's not set.
 export LANG=en_US.UTF-8
@@ -110,3 +111,8 @@ fi
 echo "[INFO] Components to migrate: ${COMPONENTS[@]}"
 
 echo "[INFO] Create Weblate components"
+create_weblate_components
+
+# Clean
+echo "[INFO] Clean up workspace directory"
+rm -rf $HOME/$WORKSPACE_NAME/projects
