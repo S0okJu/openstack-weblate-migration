@@ -16,16 +16,16 @@
 function get_pot_path {
     local component=$1
     local module_name=""
-
+    local project_package_name="${PROJECT//-/_}"
     case $component in
         "releasenotes")
             echo "$HOME/workspace/projects/$PROJECT/pot/releasenotes/source/locale/releasenotes.pot"
             ;;
         "django")
-            echo "$HOME/workspace/projects/$PROJECT/pot/$PROJECT/locale/django.pot"
+            echo "$HOME/workspace/projects/$PROJECT/pot/$project_package_name/locale/django.pot"
             ;;
         "djangojs")
-            echo "$HOME/workspace/projects/$PROJECT/pot/$PROJECT/locale/djangojs.pot"
+            echo "$HOME/workspace/projects/$PROJECT/pot/$project_package_name/locale/djangojs.pot"
             ;;
         *-django)
             # openstack-auth-django -> openstack_auth/locale/django.pot
@@ -43,7 +43,7 @@ function get_pot_path {
             echo "$HOME/workspace/projects/$PROJECT/pot/doc/source/locale/$component.pot"
             ;;
         *)
-            echo "$HOME/workspace/projects/$PROJECT/pot/$PROJECT/locale/$component.pot"
+            echo "$HOME/workspace/projects/$PROJECT/pot/$project_package_name/locale/$component.pot"
             ;;
     esac
 }
