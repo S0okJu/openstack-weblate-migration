@@ -22,14 +22,11 @@ def check_lang_exist(lang_code: str) -> bool:
     """Check if the language code exists in ZANATA_LANG_RULES."""
     if lang_code not in ZANATA_LANG_RULES:
         return False
+
+    if lang_code in ZANATA_LANG_RULES[lang_code]['region_code']:
+        return True
     
-    # If ZANATA_LANG_RULES[lang_code]['region_code'] is empty,
-    # it means the language code is only one language code.
-    lang_rules_len = len(ZANATA_LANG_RULES[lang_code]['region_code'])
-    if lang_rules_len == 0:
-        return lang_code in ZANATA_LANG_RULES
-    else:
-        return lang_code in ZANATA_LANG_RULES[lang_code]['region_code']
+    return False
     
 
 def main():
@@ -41,7 +38,7 @@ def main():
     po = polib.pofile(po_file_path)
 
     po_lang_data = po.metadata['Language']
-
+    
     # The language code is lowercase.
     # But in some cases, for example,
     # Thai(Th) is mixed with upper case.
@@ -51,23 +48,19 @@ def main():
     # If the language code contains a region code (e.g., en_US),
     # convert the language part to lowercase and region part to uppercase.
     parts = po_lang_data.split('_')
+    converted_lang_code=""
     if len(parts) == 2:
-        lang_code = f"{parts[0].lower()}_{parts[1].upper()}"
-
-    print(f"[INFO] Check {lang_code} validation...")
-    is_exist = check_lang_exist(lang_code)
+        converted_lang_code = f"{parts[0].lower()}_{parts[1].upper()}"
+    else:
+        converted_lang_code = lang_code
+    
+    print(f"[INFO] Check {lang_code} validation...")    
+    is_exist = check_lang_exist(converted_lang_code)
     if not is_exist:
-        print(f"[ERROR] {lang_code} is invalid")
-        return
+        print(f"[ERROR] {converted_lang_code} is invalid")
 
-    # Compare language
-    expected_lang = ZANATA_LANG_RULES[lang_code]['language']
-    if expected_lang != po_lang_data:
-        print(
-            f"[INFO] Change language name from {lang_code} "
-            f"to {expected_lang}"
-        )
-        po.metadata['Language'] = expected_lang
+    print(f"[INFO] Convert {po_lang_data} to {converted_lang_code}")
+    po.metadata['Language'] = converted_lang_code
 
     # Compare plural rules
     expected_plurals = ZANATA_LANG_RULES[lang_code]['plurals']
