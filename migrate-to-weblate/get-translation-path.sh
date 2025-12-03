@@ -51,16 +51,17 @@ function get_pot_path {
 function get_po_path {
     local component=$1
     local locale=$2
-
+    
+    local project_package_name="${PROJECT//-/_}"
     case $component in
         "releasenotes")
             echo "$HOME/workspace/projects/$PROJECT/translations/releasenotes/source/locale/$locale/LC_MESSAGES/releasenotes.po"
             ;;
         "django")
-            echo "$HOME/workspace/projects/$PROJECT/translations/$PROJECT/locale/$locale/LC_MESSAGES/django.po"
+            echo "$HOME/workspace/projects/$PROJECT/translations/$project_package_name/locale/$locale/LC_MESSAGES/django.po"
             ;;
         "djangojs")
-            echo "$HOME/workspace/projects/$PROJECT/translations/$PROJECT/locale/$locale/LC_MESSAGES/djangojs.po"
+            echo "$HOME/workspace/projects/$PROJECT/translations/$project_package_name/locale/$locale/LC_MESSAGES/djangojs.po"
             ;;
         *-django)
             # openstack-auth-django -> openstack_auth/locale/django.pot
@@ -78,7 +79,7 @@ function get_po_path {
             echo "$HOME/workspace/projects/$PROJECT/translations/doc/source/locale/$locale/LC_MESSAGES/$component.po"
             ;;
         *)
-            echo "$HOME/workspace/projects/$PROJECT/translations/$PROJECT/locale/$locale/LC_MESSAGES/$component.po"
+            echo "$HOME/workspace/projects/$PROJECT/translations/$project_package_name/locale/$locale/LC_MESSAGES/$component.po"
             ;;
     esac
 }
