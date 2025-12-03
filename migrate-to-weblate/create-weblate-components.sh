@@ -19,17 +19,17 @@ function create_weblate_components {
     
     cd $SCRIPTSDIR
     # Create project
-    python3 -u $SCRIPTSDIR/weblate_utils.py create-project --project $PROJECT || exit 1
+    python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py create-project --project $PROJECT || exit 1
     # Create global glossary for the project
-    python3 -u $SCRIPTSDIR/weblate_utils.py create-glossary --project $PROJECT || exit 1
+    python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py create-glossary --project $PROJECT || exit 1
     # Create category with the branch name
-    python3 -u $SCRIPTSDIR/weblate_utils.py create-category --project $PROJECT --category $BRANCHNAME || exit 1
+    python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py create-category --project $PROJECT --category $BRANCHNAME || exit 1
     # Create components with the pot file for Weblate component initialization.
     for component in ${COMPONENTS[@]}; do
         pot_path=$(get_pot_path $component)
 
         python3 -u $SCRIPTSDIR/migrate-to-weblate/lang_plural_check.py $pot_path
-        python3 -u $SCRIPTSDIR/weblate_utils.py create-component \
+        python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py create-component \
             --project $PROJECT \
             --category $BRANCHNAME \
             --component $component \
@@ -43,7 +43,7 @@ function create_weblate_components {
             locale=$(extract_locale_from_path $translation_path)
             echo "[DEBUG] Creating translation, locale: $locale, component: $component"
 
-            python3 -u $SCRIPTSDIR/weblate_utils.py create-translation \
+            python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py create-translation \
                 --project $PROJECT \
                 --category $BRANCHNAME \
                 --component $component \
@@ -54,7 +54,7 @@ function create_weblate_components {
             python3 -u $SCRIPTSDIR/migrate-to-weblate/lang_plural_check.py $translation_path
 
             echo "[DEBUG] Uploading PO filse: $translation_path"
-            python3 -u $SCRIPTSDIR/weblate_utils.py upload-po-file \
+            python3 -u $SCRIPTSDIR/migrate-to-weblate/weblate_utils.py upload-po-file \
                 --project $PROJECT \
                 --category $BRANCHNAME \
                 --component $component \
