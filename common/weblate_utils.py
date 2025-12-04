@@ -654,6 +654,21 @@ def setup_argument_parser():
         '--locale', required=True, help='Name of the locale')
     check_sentence_count_parser.add_argument(
         '--po-path', required=True, help='Path to the po file')
+    # Check sentence detail command
+    check_sentence_detail_parser = subparser.add_parser(
+        'check-sentence-detail', help='Check the sentence detail of the translation')
+    check_sentence_detail_parser.add_argument(
+        '--project', required=True, help='Name of the project')
+    check_sentence_detail_parser.add_argument(
+        '--category', required=True, help='Name of the category')
+    check_sentence_detail_parser.add_argument(
+        '--component', required=True, help='Name of the component')
+    check_sentence_detail_parser.add_argument(
+        '--locale', required=True, help='Name of the locale')
+    check_sentence_detail_parser.add_argument(
+        '--po-path', required=True, help='Path to the po file')
+    check_sentence_detail_parser.add_argument(
+        '--workspace-path', required=True, help='Path to the workspace po file')
     return parser
 
 
@@ -685,11 +700,12 @@ def main():
             utils.upload_po_file(
                 args.project, args.category, args.component, args.locale,
                 args.po_path)
-        elif args.command == 'check-accuracy':
-            utils.check_accuracy(
+        elif args.command == 'check-sentence-count':
+            utils.check_sentence_count(
                 args.project, args.category, args.component, args.locale, args.po_path)
-        elif args.command == 'lock-component':
-            utils.lock_component(args.project, args.category, args.component)
+        elif args.command == 'check-sentence-detail':
+            utils.check_sentence_detail(
+                args.project, args.category, args.component, args.locale, args.po_path, args.workspace_path)
         else:
             parser.print_help()
             sys.exit(1)
