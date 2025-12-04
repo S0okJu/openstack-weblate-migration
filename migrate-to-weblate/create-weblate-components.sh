@@ -64,7 +64,7 @@ function create_weblate_components {
                 --po-path $translation_path
             
             echo "[INFO] Check the sentence..."
-            if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence \
+            if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-count \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
                 --component $component \

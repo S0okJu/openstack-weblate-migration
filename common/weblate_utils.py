@@ -508,8 +508,7 @@ class WeblateUtils:
             translated = po.translated_entries()
 
             if result['total'] == total_sentences and result['translated'] == len(translated):
-                print("[DEBUG] Accuracy check passed")
-                print(f"[DEBUG] Total sentences: {result['total']}, Translated sentences: {result['translated']}")
+                print(f"[INFO] Sentence count check passed!: Project: {project_name}, Category: {category_name}, Component: {component_name}, Locale: {locale}, Total sentences: {result['total']}, Translated sentences: {result['translated']}")
             else:
                 print("[ERROR] Accuracy check failed")
                 print(f"[ERROR] Total sentences: {result['total']}, Translated sentences: {result['translated']}, Expected: {total_sentences}, Actual: {len(translated)}")
@@ -559,6 +558,7 @@ class WeblateUtils:
                 f.write(response.content)
             
             # check the sentence
+            print(f"[INFO] Start comparing the sentence each other.")
             weblate_po = polib.pofile(workspace_path)
             zanata_po = polib.pofile(po_path)
             for idx, entry in enumerate(zanata_po):
@@ -576,9 +576,7 @@ class WeblateUtils:
                 else:
                     print(f"[INFO] Translation matched: {entry.msgstr}")
 
-            print(f"[INFO] Successfully saved translation file to: {workspace_path}")
-            print(f"[INFO] Start comparing the sentence each other.")
-            
+            print(f"[INFO] Successfully saved translation file to: {workspace_path}")            
         else:
             print(f"[ERROR] Failed to download file: {response.status_code}")
             print(f"[ERROR] Response: {response.text}")
