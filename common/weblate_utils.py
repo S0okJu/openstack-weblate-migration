@@ -122,13 +122,14 @@ class WeblateUtils:
             'Authorization': f'Token {self.config.token}',
         }
 
-    def _get(self, url, raise_error=False) -> requests.Response:
+    def _get(self, url, params=None, raise_error=False) -> requests.Response:
         """Get query to request
 
         Weblate uses a RESTful API, so query parameters
         should be passed in the URL.
 
         :param url: The URL to send the request to
+        :param params: The parameters to send in the request
         :param raise_error: (Optional)
             If status code is over 400,
             raise an exception.
@@ -140,7 +141,7 @@ class WeblateUtils:
         :returns: requests.Response
         """
         try:
-            response = requests.get(url, headers=self._headers)
+            response = requests.get(url, headers=self._headers, params=params)
             if raise_error:
                 response.raise_for_status()
             return response
@@ -492,7 +493,7 @@ class WeblateUtils:
         print("[DEBUG] Upload failed: ",
               json.dumps(response.json()))
 
-    def check_accuracy(self, project_name: str, category_name: str, component_name: str, locale: str, po_path: str) -> None:
+    def check_sentence_count(self, project_name: str, category_name: str, component_name: str, locale: str, po_path: str) -> None:
         path = (f'translations/{sanitize_slug(project_name)}/'
                 f'{sanitize_slug(category_name)}%252F'
                 f'{sanitize_slug(component_name)}/'
@@ -508,13 +509,79 @@ class WeblateUtils:
 
             if result['total'] == total_sentences and result['translated'] == len(translated):
                 print("[DEBUG] Accuracy check passed")
-                print(f"[DEBUG] Total sentences: {result['total']}, Translated sentences: {result['translated']}, Expected: {total_sentences}, Actual: {len(translated)}")
+                print(f"[DEBUG] Total sentences: {result['total']}, Translated sentences: {result['translated']}")
             else:
                 print("[ERROR] Accuracy check failed")
                 print(f"[ERROR] Total sentences: {result['total']}, Translated sentences: {result['translated']}, Expected: {total_sentences}, Actual: {len(translated)}")
                 
         else:
             print("[ERROR] Failed to check accuracy: ", result.text)
+    
+    def _compare_sentence(self, po_path: str, workspace_path: str) -> None:
+        po = polib.pofile(po_path)
+        workspace = polib.pofile(workspace_path)
+        for entry in po:
+            if entry.msgid not in workspace:
+                print(f"[ERROR] Sentence not found: {entry.msgid}")
+                
+                
+        for entry in workspace:
+            if entry.msgid not in po:
+                print(f"[ERROR] Sentence not found: {entry.msgid}")
+                
+    def check_sentence_detail(self, project_name: str, category_name: str, component_name: str, locale: str, po_path: str, workspace_path: str) -> None:
+        """Download translation file from Weblate and save to workspace.
+        
+        :param project_name: Name of the project
+        :param category_name: Name of the category
+        :param component_name: Name of the component
+        :param locale: Locale code (e.g., 'en_US', 'ko')
+        :param po_path: Path to save the downloaded PO file
+        :param workspace_path: Path to save the downloaded PO file
+        """
+        path = (f'translations/{sanitize_slug(project_name)}/'
+                f'{sanitize_slug(category_name)}%252F'
+                f'{sanitize_slug(component_name)}/'
+                f'{locale}/file/')
+        
+        query = {
+            'format': 'po',
+        }
+        
+        url = urljoin(self.base_url, path)
+        print(f"[INFO] Downloading translation file from: {url}")
+        
+        response = self._get(url, params=query)
+        
+        if response.status_code == 200:
+            # Save the file
+            with open(workspace_path, 'wb') as f:
+                f.write(response.content)
+            
+            # check the sentence
+            weblate_po = polib.pofile(workspace_path)
+            zanata_po = polib.pofile(po_path)
+            for idx, entry in enumerate(zanata_po):
+                if entry.msgid != weblate_po[idx].msgid:
+                    print(f"[ERROR] Sentence did not match: {entry.msgid}")
+                    print(f"[ERROR] Expected: {entry.msgid}")
+                    print(f"[ERROR] Actual: {weblate_po[idx].msgid}")
+                else:
+                    print(f"[INFO] Sentence matched: {entry.msgid}")
+                
+                if entry.msgstr != weblate_po[idx].msgstr:
+                    print(f"[ERROR] Translation did not match: {entry.msgstr}")
+                    print(f"[ERROR] Expected: {entry.msgstr}")
+                    print(f"[ERROR] Actual: {weblate_po[idx].msgstr}")
+                else:
+                    print(f"[INFO] Translation matched: {entry.msgstr}")
+
+            print(f"[INFO] Successfully saved translation file to: {workspace_path}")
+            print(f"[INFO] Start comparing the sentence each other.")
+            
+        else:
+            print(f"[ERROR] Failed to download file: {response.status_code}")
+            print(f"[ERROR] Response: {response.text}")
             
 def setup_argument_parser():
     """Setup command line argument parser with subcommands."""
@@ -574,18 +641,18 @@ def setup_argument_parser():
         '--locale', required=True, help='Name of the locale')
     upload_po_file_parser.add_argument(
         '--po-path', required=True, help='Path to the po file')
-    # Check accuracy command
-    check_accuracy_parser = subparser.add_parser(
-        'check-accuracy', help='Check the accuracy of the translation')
-    check_accuracy_parser.add_argument(
+    # Check sentence count command
+    check_sentence_count_parser = subparser.add_parser(
+        'check-sentence-count', help='Check the sentence count of the translation')
+    check_sentence_count_parser.add_argument(
         '--project', required=True, help='Name of the project')
-    check_accuracy_parser.add_argument(
+    check_sentence_count_parser.add_argument(
         '--category', required=True, help='Name of the category')
-    check_accuracy_parser.add_argument(
+    check_sentence_count_parser.add_argument(
         '--component', required=True, help='Name of the component')
-    check_accuracy_parser.add_argument(
+    check_sentence_count_parser.add_argument(
         '--locale', required=True, help='Name of the locale')
-    check_accuracy_parser.add_argument(
+    check_sentence_count_parser.add_argument(
         '--po-path', required=True, help='Path to the po file')
     return parser
 
