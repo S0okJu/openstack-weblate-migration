@@ -13,7 +13,8 @@
 
 """Plural rules extracted from Zanata.
 
-Ref: https://github.com/zanata/zanata-platform/blob/master/server/services/
+Ref:
+- https://github.com/zanata/zanata-platform/blob/master/server/services/
 src/main/resources/pluralforms.properties
 """
 

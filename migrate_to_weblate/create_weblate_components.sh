@@ -13,7 +13,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-source $SCRIPTSDIR/migrate-to-weblate/get-translation-path.sh
+source $SCRIPTSDIR/migrate_to_weblate/get_translation_path.sh
 
 function create_weblate_components {
     
