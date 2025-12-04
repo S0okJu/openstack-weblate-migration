@@ -57,6 +57,7 @@ Folder and File Structure
 .. code-block:: text
 
   ├── setup_env/
+  ├── prepare-zanata-xml/
   └── migration_resources.sh
 
 * setup_env/: Scripts to create a virtual environment and install dependencies.

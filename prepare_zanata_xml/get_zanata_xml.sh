@@ -20,11 +20,18 @@ function clone_project() {
 
     cd $WORK_DIR/projects/$PROJECT
     if [ ! -d "$WORK_DIR/$PROJECT" ]; then
-        git clone https://opendev.org/openstack/$PROJECT
+        if ! git clone https://opendev.org/openstack/$PROJECT; then
+            echo "[ERROR] Failed to clone $PROJECT project"
+
+            # We check project existence from project directory existence,
+            # so we need to remove it if it gets error during cloning.
+            echo "[ERROR] Remove project directory"
+            rm -rf $CLONED_PROJECT_DIR
+            return 1
+        fi
     fi
 
-    # Even if the project is already cloned,
-    # we need to checkout the version.
+    # If ZANATA_VERSION is master, we don't need to checkout.
     if [ "$ZANATA_VERSION" != "master" ]; then
         if ! git checkout $ZANATA_VERSION; then
             echo "[ERROR] Failed to checkout $ZANATA_VERSION version"
@@ -37,6 +44,9 @@ function clone_project() {
     return 0
 }
 
+# setup_* functions are referenced from openstack-zuul-jobs project.
+# - openstack-zuul-jobs/roles/prepare-zanata-client/files/common_translation_update.sh
+
 # Setup a project for Zanata. This is used by both Python and Django projects.
 # syntax: setup_project <project> <zanata_version>
 function setup_project {
@@ -44,7 +54,7 @@ function setup_project {
     # and .venv
     local exclude='.*/**'
 
-    if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
+    if ! python3 $SCRIPTSDIR/prepare_zanata_xml/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale_with_underscore}/LC_MESSAGES/{filename}.po' \
         -e "$exclude" -f $CLONED_PROJECT_DIR/zanata.xml; then
@@ -97,20 +107,23 @@ function setup_manuals {
             esac
         fi
         if [ ${IS_RST} -eq 1 ] ; then
-            ZANATA_RULES="$ZANATA_RULES -r ${ZanataDocFolder}/${DOCNAME}/source/locale/${DOCNAME}.pot ${DocFolder}/${DOCNAME}/source/locale/{locale_with_underscore}/LC_MESSAGES/${DOCNAME}.po"
+            ZANATA_RULES="$ZANATA_RULES -r ${ZanataDocFolder}/${DOCNAME}/source/locale/${DOCNAME}.pot \
+                ${DocFolder}/${DOCNAME}/source/locale/{locale_with_underscore}/LC_MESSAGES/${DOCNAME}.po"
         else
             if [ -f ${DocFolder}/${DOCNAME}/locale/${DOCNAME}.pot ]; then
-                ZANATA_RULES="$ZANATA_RULES -r ${ZanataDocFolder}/${DOCNAME}/locale/${DOCNAME}.pot ${DocFolder}/${DOCNAME}/locale/{locale_with_underscore}.po"
+                ZANATA_RULES="$ZANATA_RULES -r ${ZanataDocFolder}/${DOCNAME}/locale/${DOCNAME}.pot \
+                    ${DocFolder}/${DOCNAME}/locale/{locale_with_underscore}.po"
             fi
         fi
     done
 
     # Project setup and updating POT files for release notes.
     if [[ $PROJECT == "openstack-manuals" ]] && [[ $ZANATA_VERSION == "master" ]]; then
-        ZANATA_RULES="$ZANATA_RULES -r ./releasenotes/source/locale/releasenotes.pot releasenotes/source/locale/{locale_with_underscore}/LC_MESSAGES/releasenotes.po"
+        ZANATA_RULES="$ZANATA_RULES -r ./releasenotes/source/locale/releasenotes.pot \
+            releasenotes/source/locale/{locale_with_underscore}/LC_MESSAGES/releasenotes.po"
     fi
 
-    if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
+    if ! python3 $SCRIPTSDIR/prepare_zanata_xml/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         $ZANATA_RULES -e "$EXCLUDE" \
         -f $WORK_DIR/projects/$PROJECT/$PROJECT/zanata.xml; then
@@ -122,7 +135,7 @@ function setup_manuals {
 
 # Setup a training-guides project for Zanata
 function setup_training_guides {
-    if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
+    if ! python3 $SCRIPTSDIR/prepare_zanata_xml/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION \
         --srcdir doc/upstream-training/source/locale \
         --txdir doc/upstream-training/source/locale \
@@ -135,7 +148,7 @@ function setup_training_guides {
 
 # Setup a i18n project for Zanata
 function setup_i18n {
-    if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
+    if ! python3 $SCRIPTSDIR/prepare_zanata_xml/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION \
         --srcdir doc/source/locale \
         --txdir doc/source/locale \
@@ -150,7 +163,7 @@ function setup_i18n {
 function setup_reactjs_project {
     local exclude='node_modules/**'
 
-    if ! python3 $SCRIPTSDIR/prepare-zanata-xml/create-zanata-xml.py \
+    if ! python3 $SCRIPTSDIR/prepare_zanata_xml/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale}.po' \
         -e "$exclude" \
