@@ -118,6 +118,10 @@ echo "[INFO] Start Accuracy Test"
 if [ -z "$LOG_DIR" ]; then
     mkdir -p $LOG_DIR
 fi
+# create log file if not exists
+if [ ! -f $LOG_DIR/${PROJECT}_test.log ]; then
+    touch $LOG_DIR/${PROJECT}_test.log
+fi
 test_accuracy 2>&1 | tee -a $LOG_DIR/${PROJECT}_test.log
 
 # Clean
