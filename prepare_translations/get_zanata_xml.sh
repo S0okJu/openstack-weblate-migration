@@ -54,7 +54,7 @@ function setup_project {
     # and .venv
     local exclude='.*/**'
 
-    if ! python3 $SCRIPTSDIR/prepare_zanata_xml/create_zanata_xml.py \
+    if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale_with_underscore}/LC_MESSAGES/{filename}.po' \
         -e "$exclude" -f $CLONED_PROJECT_DIR/zanata.xml; then
@@ -123,7 +123,7 @@ function setup_manuals {
             releasenotes/source/locale/{locale_with_underscore}/LC_MESSAGES/releasenotes.po"
     fi
 
-    if ! python3 $SCRIPTSDIR/prepare_zanata_xml/create_zanata_xml.py \
+    if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         $ZANATA_RULES -e "$EXCLUDE" \
         -f $WORK_DIR/projects/$PROJECT/$PROJECT/zanata.xml; then
@@ -135,7 +135,7 @@ function setup_manuals {
 
 # Setup a training-guides project for Zanata
 function setup_training_guides {
-    if ! python3 $SCRIPTSDIR/prepare_zanata_xml/create_zanata_xml.py \
+    if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION \
         --srcdir doc/upstream-training/source/locale \
         --txdir doc/upstream-training/source/locale \
@@ -148,7 +148,7 @@ function setup_training_guides {
 
 # Setup a i18n project for Zanata
 function setup_i18n {
-    if ! python3 $SCRIPTSDIR/prepare_zanata_xml/create_zanata_xml.py \
+    if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION \
         --srcdir doc/source/locale \
         --txdir doc/source/locale \
@@ -163,7 +163,7 @@ function setup_i18n {
 function setup_reactjs_project {
     local exclude='node_modules/**'
 
-    if ! python3 $SCRIPTSDIR/prepare_zanata_xml/create_zanata_xml.py \
+    if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale}.po' \
         -e "$exclude" \
