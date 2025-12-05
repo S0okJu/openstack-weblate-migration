@@ -31,6 +31,7 @@ source $SCRIPTSDIR/prepare_translations/get_zanata_xml.sh
 source $SCRIPTSDIR/prepare_translations/get_translations.sh
 source $SCRIPTSDIR/prepare_component_name/get_project_component_name.sh
 source $SCRIPTSDIR/prepare_weblate_components/create_weblate_components.sh
+source $SCRIPTSDIR/test_accuracy/test.sh
 
 # We need a UTF-8 locale, set it properly in case it's not set.
 export LANG=en_US.UTF-8
@@ -115,7 +116,7 @@ echo "[INFO] Create Weblate components"
 create_weblate_components
 
 echo "[INFO] Start Accuracy Test"
-if [ -z "$LOG_DIR" ]; then
+if [ ! -d "$LOG_DIR" ]; then
     mkdir -p $LOG_DIR
 fi
 # create log file if not exists
