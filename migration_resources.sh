@@ -30,7 +30,7 @@ source $SCRIPTSDIR/setup_env/setup.sh
 source $SCRIPTSDIR/prepare_translations/get_zanata_xml.sh
 source $SCRIPTSDIR/prepare_translations/get_translations.sh
 source $SCRIPTSDIR/prepare_component_name/get_project_component_name.sh
-source $SCRIPTSDIR/migrate_to_weblate/create_weblate_components.sh
+source $SCRIPTSDIR/prepare_weblate_components/create_weblate_components.sh
 
 # We need a UTF-8 locale, set it properly in case it's not set.
 export LANG=en_US.UTF-8
