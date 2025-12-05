@@ -53,7 +53,7 @@ function create_weblate_components {
             sleep 10
 
             echo "[INFO] Check plural forms..."
-            python3 -u $SCRIPTSDIR/migrate-to-weblate/lang_plural_check.py $translation_path
+            python3 -u $SCRIPTSDIR/prepare_weblate_components/lang_plural_check.py $translation_path
 
             echo "[INFO] Uploading PO filse: $translation_path"
             python3 -u $SCRIPTSDIR/common/weblate_utils.py upload-po-file \

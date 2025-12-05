@@ -13,7 +13,8 @@ function test_accuracy {
     # Download translation file from Weblate
     python3 -u $SCRIPTSDIR/common/weblate_utils.py download-translation-file \
         --project $PROJECT 
-
+    unzip -o $PROJECT.zip
+    rm -f $PROJECT.zip
     for component in "${COMPONENTS[@]}"; do
         translation_path_list=$(get_translation_path_list $component)
         for translation_path in "${translation_path_list[@]}"; do
