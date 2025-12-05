@@ -694,11 +694,7 @@ def main():
             parser.print_help()
             sys.exit(1)
     except Exception as e:
-        print("[ERROR] Failed to migrate: ")
-        error_message = str(e)
-        for line in error_message.split('\n'):
-            if line.strip():
-                print(f"[ERROR] {line}")
+        print(f"[ERROR] Failed to migrate: {e}")
 
 if __name__ == "__main__":
     main()
