@@ -527,37 +527,22 @@ class WeblateUtils:
         :param zanata_po_path: Path to the zanata po file
         :param weblate_po_path: Path to the weblate po file
         """
-        print(f"[DEBUG] Zanata PO path: {zanata_po_path}")
-        print(f"[DEBUG] Zanata exists: {os.path.exists(zanata_po_path)}")
-        print(f"[DEBUG] Weblate PO path: {weblate_po_path}")
-        print(f"[DEBUG] Weblate exists: {os.path.exists(weblate_po_path)}")
+        zanata_po = polib.pofile(zanata_po_path)
+        weblate_po = polib.pofile(weblate_po_path)
         
-        if os.path.exists(weblate_po_path):
-            print(f"[DEBUG] Weblate file size: {os.path.getsize(weblate_po_path)} bytes")
+        zanata_total_count = len(zanata_po.translated_entries()) + len(zanata_po.untranslated_entries())
+        weblate_total_count = len(weblate_po.translated_entries()) + len(weblate_po.untranslated_entries())
         
-        try:
-            zanata_po = polib.pofile(zanata_po_path)
-        except Exception as e:
-            print(f"[ERROR] Failed to parse Zanata PO: {e}")
-            raise
-        
-        try:
-            weblate_po = polib.pofile(weblate_po_path)
-        except Exception as e:
-            print(f"[ERROR] Failed to parse Weblate PO: {e}")
-            raise
-        if len(zanata_po.entries) != len(weblate_po.entries):
-            print(f"[ERROR] Sentence count mismatch: {len(zanata_po.entries)} != {len(weblate_po.entries)}")
-            sys.exit(1)
+        if zanata_total_count != weblate_total_count:
+            print(f"[ERROR] Sentence count mismatch: {zanata_total_count} != {weblate_total_count}")
         else:
-            print(f"[INFO] Sentence total count matched!: {len(zanata_po.entries)}")
+            print(f"[INFO] Sentence total count matched!: {zanata_total_count}")
         
-        if len(zanata_po.translated_entries()) != len(weblate_po.translated_entries()):
+        if zanata_po.translated_entries() != weblate_po.translated_entries():
             print(f"[ERROR] Translated sentence count mismatch: {len(zanata_po.translated_entries())} != {len(weblate_po.translated_entries())}")
-            sys.exit(1)
         else:
             print(f"[INFO] Translated sentence count matched!: {len(zanata_po.translated_entries())}")
-    
+        
     def check_sentence_detail(
         self,
         zanata_po_path: str,

@@ -126,5 +126,5 @@ fi
 test_accuracy 2>&1 | tee -a $LOG_DIR/${PROJECT}_test.log
 
 # Clean
-echo "[INFO] Clean up workspace directory"
-rm -rf $HOME/$WORKSPACE_NAME/projects
+# echo "[INFO] Clean up workspace directory"
+# rm -rf $HOME/$WORKSPACE_NAME/projects
