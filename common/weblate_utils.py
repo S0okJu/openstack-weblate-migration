@@ -496,20 +496,24 @@ class WeblateUtils:
     def download_translation_file(
         self,
         project_name: str,
+        po_path: str,
     ) -> None:
         """Download translation file from Weblate
         
         :param project_name: Name of the project
-        :param category_name: Name of the category
-        :param component_name: Name of the component
-        :param locale: Locale code (e.g., 'en_US')
-        :param po_path: Path to the po file
+        :param po_path: Path to the po file to save
         """
         path = (f'projects/{sanitize_slug(project_name)}/file/')
         url = urljoin(self.base_url, path)
         response = self._get(url, raise_error=True)
         if response.status_code == 200:
+            with open(po_path, 'wb') as f:
+                f.write(response.content)
             print(f"[INFO] Successfully downloaded translation file from: {url}")
+            print(f"[INFO] Saved to: {po_path}")
+        else:
+            print(f"[ERROR] Failed to download translation file: {response.status_code}")
+            sys.exit(1)
         
         return None
     
