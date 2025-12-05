@@ -492,94 +492,80 @@ class WeblateUtils:
 
         print("[DEBUG] Upload failed: ",
               json.dumps(response.json()))
-
-    def check_sentence_count(self, project_name: str, category_name: str, component_name: str, locale: str, po_path: str) -> None:
-        path = (f'translations/{sanitize_slug(project_name)}/'
-                f'{sanitize_slug(category_name)}%252F'
-                f'{sanitize_slug(component_name)}/'
-                f'{locale}/')
-        url = urljoin(self.base_url, path)
-        result = self._get(url)
-        if result.status_code == 200:
-            result = result.json()
-            
-            po = polib.pofile(po_path)
-            total_sentences = len(po)
-            translated = po.translated_entries()
-
-            if result['total'] == total_sentences and result['translated'] == len(translated):
-                print(f"[INFO] Sentence count check passed!: Project: {project_name}, Category: {category_name}, Component: {component_name}, Locale: {locale}, Total sentences: {result['total']}, Translated sentences: {result['translated']}")
-            else:
-                print("[ERROR] Accuracy check failed")
-                print(f"[ERROR] Total sentences: {result['total']}, Translated sentences: {result['translated']}, Expected: {total_sentences}, Actual: {len(translated)}")
-                
-        else:
-            print("[ERROR] Failed to check accuracy: ", result.text)
     
-    def _compare_sentence(self, po_path: str, workspace_path: str) -> None:
-        po = polib.pofile(po_path)
-        workspace = polib.pofile(workspace_path)
-        for entry in po:
-            if entry.msgid not in workspace:
-                print(f"[ERROR] Sentence not found: {entry.msgid}")
-                
-                
-        for entry in workspace:
-            if entry.msgid not in po:
-                print(f"[ERROR] Sentence not found: {entry.msgid}")
-                
-    def check_sentence_detail(self, project_name: str, category_name: str, component_name: str, locale: str, po_path: str, workspace_path: str) -> None:
-        """Download translation file from Weblate and save to workspace.
+    def download_translation_file(
+        self,
+        project_name: str,
+    ) -> None:
+        """Download translation file from Weblate
         
         :param project_name: Name of the project
         :param category_name: Name of the category
         :param component_name: Name of the component
-        :param locale: Locale code (e.g., 'en_US', 'ko')
-        :param po_path: Path to save the downloaded PO file
-        :param workspace_path: Path to save the downloaded PO file
+        :param locale: Locale code (e.g., 'en_US')
+        :param po_path: Path to the po file
         """
-        path = (f'translations/{sanitize_slug(project_name)}/'
-                f'{sanitize_slug(category_name)}%252F'
-                f'{sanitize_slug(component_name)}/'
-                f'{locale}/file/')
-        
-        query = {
-            'format': 'po',
-        }
-        
+        path = (f'projects/{sanitize_slug(project_name)}/file/')
         url = urljoin(self.base_url, path)
-        print(f"[INFO] Downloading translation file from: {url}")
-        
-        response = self._get(url, params=query)
-        
+        response = self._get(url, raise_error=True)
         if response.status_code == 200:
-            # Save the file
-            with open(workspace_path, 'wb') as f:
-                f.write(response.content)
-            
-            # check the sentence
-            print(f"[INFO] Start comparing the sentence each other.")
-            weblate_po = polib.pofile(workspace_path)
-            zanata_po = polib.pofile(po_path)
-            for idx, entry in enumerate(zanata_po):
-                if entry.msgid != weblate_po[idx].msgid:
-                    print(f"[ERROR] Sentence did not match: {entry.msgid}")
-                    print(f"[ERROR] Expected: {entry.msgid}")
-                    print(f"[ERROR] Actual: {weblate_po[idx].msgid}")
-                else:
-                    print(f"[INFO] Sentence matched: {entry.msgid}")
-                
-                if entry.msgstr != weblate_po[idx].msgstr:
-                    print(f"[ERROR] Translation did not match: {entry.msgstr}")
-                    print(f"[ERROR] Expected: {entry.msgstr}")
-                    print(f"[ERROR] Actual: {weblate_po[idx].msgstr}")
-                else:
-                    print(f"[INFO] Translation matched: {entry.msgstr}")
-
-            print(f"[INFO] Successfully saved translation file to: {workspace_path}")            
+            print(f"[INFO] Successfully downloaded translation file from: {url}")
+        
+        return None
+    
+    def check_sentence_count(
+        self,
+        zanata_po_path: str,
+        weblate_po_path: str
+    ) -> None:
+        """Check the sentence count of the translation
+        
+        :param zanata_po_path: Path to the zanata po file
+        :param weblate_po_path: Path to the weblate po file
+        """
+        zanata_po = polib.pofile(zanata_po_path)
+        weblate_po = polib.pofile(weblate_po_path)
+        if len(zanata_po.entries) != len(weblate_po.entries):
+            print(f"[ERROR] Sentence count mismatch: {len(zanata_po.entries)} != {len(weblate_po.entries)}")
+            sys.exit(1)
         else:
-            print(f"[ERROR] Failed to download file: {response.status_code}")
-            print(f"[ERROR] Response: {response.text}")
+            print(f"[INFO] Sentence total count matched!: {len(zanata_po.entries)}")
+        
+        if len(zanata_po.translated_entries()) != len(weblate_po.translated_entries()):
+            print(f"[ERROR] Translated sentence count mismatch: {len(zanata_po.translated_entries())} != {len(weblate_po.translated_entries())}")
+            sys.exit(1)
+        else:
+            print(f"[INFO] Translated sentence count matched!: {len(zanata_po.translated_entries())}")
+    
+    def check_sentence_detail(
+        self,
+        zanata_po_path: str,
+        weblate_po_path: str,
+    ) -> None:
+        """Download translation file from Weblate and save to workspace.
+        
+        :param zanata_po_path: Path to the zanata po file
+        :param weblate_po_path: Path to the weblate po file
+        """
+        zanata_po = polib.pofile(zanata_po_path)
+        weblate_po = polib.pofile(weblate_po_path)
+        for idx, entry in enumerate(zanata_po):
+            if entry.msgid != weblate_po[idx].msgid:
+                print(f"[ERROR] Sentence did not match: {entry.msgid}")
+                print(f"[ERROR] Expected: {entry.msgid}")
+                print(f"[ERROR] Actual: {weblate_po[idx].msgid}")
+            else:
+                print(f"[INFO] Sentence matched: {entry.msgid}")
+            
+            if entry.msgstr != weblate_po[idx].msgstr:
+                print(f"[ERROR] Translation did not match: {entry.msgstr}")
+                print(f"[ERROR] Expected: {entry.msgstr}")
+                print(f"[ERROR] Actual: {weblate_po[idx].msgstr}")
+            else:
+                print(f"[INFO] Translation matched: {entry.msgstr}")
+        
+        print("[INFO] Check sentence detail completed!")
+
             
 def setup_argument_parser():
     """Setup command line argument parser with subcommands."""
@@ -639,34 +625,27 @@ def setup_argument_parser():
         '--locale', required=True, help='Name of the locale')
     upload_po_file_parser.add_argument(
         '--po-path', required=True, help='Path to the po file')
+    # Download translation file command
+    download_translation_file_parser = subparser.add_parser(
+        'download-translation-file', help='Download a translation file from Weblate')
+    download_translation_file_parser.add_argument(
+        '--project', required=True, help='Name of the project')
+    download_translation_file_parser.add_argument(
+        '--po-path', required=True, help='Path to the po file')
     # Check sentence count command
     check_sentence_count_parser = subparser.add_parser(
         'check-sentence-count', help='Check the sentence count of the translation')
     check_sentence_count_parser.add_argument(
-        '--project', required=True, help='Name of the project')
+        '--zanata-po-path', required=True, help='Path to the zanata po file')
     check_sentence_count_parser.add_argument(
-        '--category', required=True, help='Name of the category')
-    check_sentence_count_parser.add_argument(
-        '--component', required=True, help='Name of the component')
-    check_sentence_count_parser.add_argument(
-        '--locale', required=True, help='Name of the locale')
-    check_sentence_count_parser.add_argument(
-        '--po-path', required=True, help='Path to the po file')
+        '--weblate-po-path', required=True, help='Path to the weblate po file')
     # Check sentence detail command
     check_sentence_detail_parser = subparser.add_parser(
         'check-sentence-detail', help='Check the sentence detail of the translation')
     check_sentence_detail_parser.add_argument(
-        '--project', required=True, help='Name of the project')
+        '--zanata-po-path', required=True, help='Path to the zanata po file')
     check_sentence_detail_parser.add_argument(
-        '--category', required=True, help='Name of the category')
-    check_sentence_detail_parser.add_argument(
-        '--component', required=True, help='Name of the component')
-    check_sentence_detail_parser.add_argument(
-        '--locale', required=True, help='Name of the locale')
-    check_sentence_detail_parser.add_argument(
-        '--po-path', required=True, help='Path to the po file')
-    check_sentence_detail_parser.add_argument(
-        '--workspace-path', required=True, help='Path to the workspace po file')
+        '--weblate-po-path', required=True, help='Path to the weblate po file')
     return parser
 
 
@@ -698,12 +677,15 @@ def main():
             utils.upload_po_file(
                 args.project, args.category, args.component, args.locale,
                 args.po_path)
+        elif args.command == 'download-translation-file':
+            utils.download_translation_file(
+                args.project, args.po_path)
         elif args.command == 'check-sentence-count':
             utils.check_sentence_count(
-                args.project, args.category, args.component, args.locale, args.po_path)
+                args.zanata_po_path, args.weblate_po_path)
         elif args.command == 'check-sentence-detail':
             utils.check_sentence_detail(
-                args.project, args.category, args.component, args.locale, args.po_path, args.workspace_path)
+                args.zanata_po_path, args.weblate_po_path)
         else:
             parser.print_help()
             sys.exit(1)

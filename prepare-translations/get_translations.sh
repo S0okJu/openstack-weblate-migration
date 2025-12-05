@@ -13,6 +13,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+source $SCRIPTSDIR/prepare
+
 WORK_DIR="$HOME/$WORKSPACE_NAME"
 
 function pull_translation_files {

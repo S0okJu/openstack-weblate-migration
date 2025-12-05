@@ -15,35 +15,36 @@
 
 function get_pot_path {
     local component=$1
+    local base_dir=${2:-$HOME/workspace/projects/$PROJECT/pot}
     local module_name=""
     local project_package_name="${PROJECT//-/_}"
     case $component in
         "releasenotes")
-            echo "$HOME/workspace/projects/$PROJECT/pot/releasenotes/source/locale/releasenotes.pot"
+            echo "$base_dir/releasenotes/source/locale/releasenotes.pot"
             ;;
         "django")
-            echo "$HOME/workspace/projects/$PROJECT/pot/$project_package_name/locale/django.pot"
+            echo "$base_dir/$project_package_name/locale/django.pot"
             ;;
         "djangojs")
-            echo "$HOME/workspace/projects/$PROJECT/pot/$project_package_name/locale/djangojs.pot"
+            echo "$base_dir/$project_package_name/locale/djangojs.pot"
             ;;
         *-django)
             # openstack-auth-django -> openstack_auth/locale/django.pot
             module_name="${component%-django}"
             module_name="${module_name//-/_}"
-            echo "$HOME/workspace/projects/$PROJECT/pot/$module_name/locale/django.pot"
+            echo "$base_dir/$module_name/locale/django.pot"
             ;;
         *-djangojs)
             # openstack-auth-djangojs -> openstack_auth/locale/djangojs.pot
             module_name="${component%-djangojs}"
             module_name="${module_name//-/_}"
-            echo "$HOME/workspace/projects/$PROJECT/pot/$module_name/locale/djangojs.pot"
+            echo "$base_dir/$module_name/locale/djangojs.pot"
             ;;
         "doc"|doc-*)
-            echo "$HOME/workspace/projects/$PROJECT/pot/doc/source/locale/$component.pot"
+            echo "$base_dir/doc/source/locale/$component.pot"
             ;;
         *)
-            echo "$HOME/workspace/projects/$PROJECT/pot/$project_package_name/locale/$component.pot"
+            echo "$base_dir/$project_package_name/locale/$component.pot"
             ;;
     esac
 }
@@ -51,35 +52,36 @@ function get_pot_path {
 function get_po_path {
     local component=$1
     local locale=$2
+    local base_dir=${3:-$HOME/workspace/projects/$PROJECT/translations}
     
     local project_package_name="${PROJECT//-/_}"
     case $component in
         "releasenotes")
-            echo "$HOME/workspace/projects/$PROJECT/translations/releasenotes/source/locale/$locale/LC_MESSAGES/releasenotes.po"
+            echo "$base_dir/releasenotes/source/locale/$locale/LC_MESSAGES/releasenotes.po"
             ;;
         "django")
-            echo "$HOME/workspace/projects/$PROJECT/translations/$project_package_name/locale/$locale/LC_MESSAGES/django.po"
+            echo "$base_dir/$project_package_name/locale/$locale/LC_MESSAGES/django.po"
             ;;
         "djangojs")
-            echo "$HOME/workspace/projects/$PROJECT/translations/$project_package_name/locale/$locale/LC_MESSAGES/djangojs.po"
+            echo "$base_dir/$project_package_name/locale/$locale/LC_MESSAGES/djangojs.po"
             ;;
         *-django)
             # openstack-auth-django -> openstack_auth/locale/django.pot
             module_name="${component%-django}"
             module_name="${module_name//-/_}"
-            echo "$HOME/workspace/projects/$PROJECT/translations/$module_name/locale/$locale/LC_MESSAGES/django.po"
+            echo "$base_dir/$module_name/locale/$locale/LC_MESSAGES/django.po"
             ;;
         *-djangojs)
             # openstack-auth-djangojs -> openstack_auth/locale/djangojs.pot
             module_name="${component%-djangojs}"
             module_name="${module_name//-/_}"
-            echo "$HOME/workspace/projects/$PROJECT/translations/$module_name/locale/$locale/LC_MESSAGES/djangojs.po"
+            echo "$base_dir/$module_name/locale/$locale/LC_MESSAGES/djangojs.po"
             ;;
         "doc"|doc-*)
-            echo "$HOME/workspace/projects/$PROJECT/translations/doc/source/locale/$locale/LC_MESSAGES/$component.po"
+            echo "$base_dir/doc/source/locale/$locale/LC_MESSAGES/$component.po"
             ;;
         *)
-            echo "$HOME/workspace/projects/$PROJECT/translations/$project_package_name/locale/$locale/LC_MESSAGES/$component.po"
+            echo "$base_dir/$project_package_name/locale/$locale/LC_MESSAGES/$component.po"
             ;;
     esac
 }

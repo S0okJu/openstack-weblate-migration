@@ -23,10 +23,11 @@ ZANATA_VERSION=${BRANCH_NAME//\//-}
 
 # List the components to be handled
 COMPONENTS=()
+LOG_DIR=$HOME/$WORKSPACE_NAME/projects/$PROJECT/log
 
 SCRIPTSDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source $SCRIPTSDIR/setup_env/setup.sh
-source $SCRIPTSDIR/prepare_zanata_xml/get_zanata_xml.sh
+source $SCRIPTSDIR/prepare_translations/get_translations.sh
 source $SCRIPTSDIR/prepare_translations/get_translation.sh
 source $SCRIPTSDIR/prepare_component_name/get_project_component_name.sh
 source $SCRIPTSDIR/migrate_to_weblate/create_weblate_components.sh
@@ -112,6 +113,12 @@ echo "[INFO] Components to migrate: ${COMPONENTS[@]}"
 
 echo "[INFO] Create Weblate components"
 create_weblate_components
+
+echo "[INFO] Start Accuracy Test"
+if [ -z "$LOG_DIR" ]; then
+    mkdir -p $LOG_DIR
+fi
+test_accuracy 2>&1 | tee -a $LOG_DIR/${PROJECT}_test.log
 
 # Clean
 echo "[INFO] Clean up workspace directory"
