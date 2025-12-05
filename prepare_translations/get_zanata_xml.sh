@@ -20,13 +20,12 @@ function clone_project() {
 
     cd $WORK_DIR/projects/$PROJECT
     if [ ! -d "$WORK_DIR/$PROJECT" ]; then
-        if ! git clone https://opendev.org/openstack/$PROJECT; then
+        git clone https://opendev.org/openstack/$PROJECT
+        echo "[ERROR] Failed to clone $PROJECT project"
+        # If the cloned project directory is empty, remove and get errors.
+        if [ -z "$(ls -A $WORK_DIR/$PROJECT)" ]; then
+            rm -rf $WORK_DIR/$PROJECT
             echo "[ERROR] Failed to clone $PROJECT project"
-
-            # We check project existence from project directory existence,
-            # so we need to remove it if it gets error during cloning.
-            echo "[ERROR] Remove project directory"
-            rm -rf $CLONED_PROJECT_DIR
             return 1
         fi
     fi
