@@ -27,7 +27,7 @@ function test_accuracy {
             echo "[INFO] Check the sentence..."
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-count \
                 --zanata-po-path $translation_path \
-                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT)
+                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$ZANATA_VERSION)
             then
                 echo "[ERROR] Check the sentence failed: $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
                 exit 1
@@ -36,7 +36,7 @@ function test_accuracy {
             echo "[INFO] Check the sentence detail..."
             python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-detail \
                 --zanata-po-path $translation_path \
-                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT)
+                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$ZANATA_VERSION)
             
         done
     done
