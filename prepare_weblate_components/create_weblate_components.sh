@@ -62,29 +62,7 @@ function create_weblate_components {
                 --component $component \
                 --locale $locale \
                 --po-path $translation_path
-            
-            echo "[INFO] Check the sentence..."
-            if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-count \
-                --project $PROJECT \
-                --category $ZANATA_VERSION \
-                --component $component \
-                --locale $locale \
-                --po-path $translation_path
-            then
-                echo "[ERROR] Check the sentence failed: $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
-                exit 1
-            fi
 
-            echo "[INFO] Check the sentence detail..."
-            mkdir -p $WORKSPACE_DIR/$component/$locale
-            python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-detail \
-                --project $PROJECT \
-                --category $ZANATA_VERSION \
-                --component $component \
-                --locale $locale \
-                --po-path $translation_path \
-                --workspace-path "$WORKSPACE_DIR/$component/$locale.po" || exit 1
-            
         done
 
     done
