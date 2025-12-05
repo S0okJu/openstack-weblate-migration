@@ -527,8 +527,25 @@ class WeblateUtils:
         :param zanata_po_path: Path to the zanata po file
         :param weblate_po_path: Path to the weblate po file
         """
-        zanata_po = polib.pofile(zanata_po_path)
-        weblate_po = polib.pofile(weblate_po_path)
+        print(f"[DEBUG] Zanata PO path: {zanata_po_path}")
+        print(f"[DEBUG] Zanata exists: {os.path.exists(zanata_po_path)}")
+        print(f"[DEBUG] Weblate PO path: {weblate_po_path}")
+        print(f"[DEBUG] Weblate exists: {os.path.exists(weblate_po_path)}")
+        
+        if os.path.exists(weblate_po_path):
+            print(f"[DEBUG] Weblate file size: {os.path.getsize(weblate_po_path)} bytes")
+        
+        try:
+            zanata_po = polib.pofile(zanata_po_path)
+        except Exception as e:
+            print(f"[ERROR] Failed to parse Zanata PO: {e}")
+            raise
+        
+        try:
+            weblate_po = polib.pofile(weblate_po_path)
+        except Exception as e:
+            print(f"[ERROR] Failed to parse Weblate PO: {e}")
+            raise
         if len(zanata_po.entries) != len(weblate_po.entries):
             print(f"[ERROR] Sentence count mismatch: {len(zanata_po.entries)} != {len(weblate_po.entries)}")
             sys.exit(1)

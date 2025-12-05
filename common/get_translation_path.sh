@@ -53,32 +53,53 @@ function get_po_path {
     local component=$1
     local locale=$2
     local base_dir=${3:-$HOME/workspace/projects/$PROJECT/translations}
-    
+    local is_weblate=${4:-false}
+
     local project_package_name="${PROJECT//-/_}"
     case $component in
         "releasenotes")
             echo "$base_dir/releasenotes/source/locale/$locale/LC_MESSAGES/releasenotes.po"
             ;;
         "django")
-            echo "$base_dir/$project_package_name/locale/$locale/LC_MESSAGES/django.po"
+            if [ "$is_weblate" == "true" ]; then
+                echo "$base_dir/django/locale/$locale/LC_MESSAGES/django.po"
+            else
+                echo "$base_dir/$project_package_name/locale/$locale/LC_MESSAGES/django.po"
+            fi
             ;;
         "djangojs")
-            echo "$base_dir/$project_package_name/locale/$locale/LC_MESSAGES/djangojs.po"
+            if [ "$is_weblate" == "true" ]; then
+                echo "$base_dir/djangojs/locale/$locale/LC_MESSAGES/djangojs.po"
+            else
+                echo "$base_dir/$project_package_name/locale/$locale/LC_MESSAGES/djangojs.po"
+            fi
             ;;
         *-django)
-            # openstack-auth-django -> openstack_auth/locale/django.pot
-            module_name="${component%-django}"
-            module_name="${module_name//-/_}"
-            echo "$base_dir/$module_name/locale/$locale/LC_MESSAGES/django.po"
+            if [ "$is_weblate" == "true" ]; then
+                echo "$base_dir/$component/locale/$locale/LC_MESSAGES/django.po"
+            else
+                # openstack-auth-django -> openstack_auth/locale/django.pot
+                module_name="${component%-django}"
+                module_name="${module_name//-/_}"
+                echo "$base_dir/$module_name/locale/$locale/LC_MESSAGES/django.po"
+            fi
             ;;
         *-djangojs)
-            # openstack-auth-djangojs -> openstack_auth/locale/djangojs.pot
-            module_name="${component%-djangojs}"
-            module_name="${module_name//-/_}"
-            echo "$base_dir/$module_name/locale/$locale/LC_MESSAGES/djangojs.po"
+            if [ "$is_weblate" == "true" ]; then
+                echo "$base_dir/$component/locale/$locale/LC_MESSAGES/djangojs.po"
+            else
+                # openstack-auth-djangojs -> openstack_auth/locale/djangojs.pot
+                module_name="${component%-djangojs}"
+                module_name="${module_name//-/_}"
+                echo "$base_dir/$module_name/locale/$locale/LC_MESSAGES/djangojs.po"
+            fi
             ;;
         "doc"|doc-*)
-            echo "$base_dir/doc/source/locale/$locale/LC_MESSAGES/$component.po"
+            if [ "$is_weblate" == "true" ]; then
+                echo "$base_dir/$component/locale/source/$locale/LC_MESSAGES/$component.po"
+            else
+                echo "$base_dir/doc/source/locale/$locale/LC_MESSAGES/$component.po"
+            fi
             ;;
         *)
             echo "$base_dir/$project_package_name/locale/$locale/LC_MESSAGES/$component.po"
