@@ -535,13 +535,13 @@ class WeblateUtils:
         
         if zanata_total_count != weblate_total_count:
             print(f"[ERROR] Sentence count mismatch: {zanata_total_count} != {weblate_total_count}")
-        else:
-            print(f"[INFO] Sentence total count matched!: {zanata_total_count}")
+        # else:
+        #     print(f"[INFO] Sentence total count matched!: {zanata_total_count}")
         
         if zanata_po.translated_entries() != weblate_po.translated_entries():
             print(f"[ERROR] Translated sentence count mismatch: {len(zanata_po.translated_entries())} != {len(weblate_po.translated_entries())}")
-        else:
-            print(f"[INFO] Translated sentence count matched!: {len(zanata_po.translated_entries())}")
+        # else:
+        #     print(f"[INFO] Translated sentence count matched!: {len(zanata_po.translated_entries())}")
         
     def check_sentence_detail(
         self,
@@ -560,15 +560,15 @@ class WeblateUtils:
                 print(f"[ERROR] Sentence did not match: {entry.msgid}")
                 print(f"[ERROR] Expected: {entry.msgid}")
                 print(f"[ERROR] Actual: {weblate_po[idx].msgid}")
-            else:
-                print(f"[INFO] Sentence matched: {entry.msgid}")
+            # else:
+            #     print(f"[INFO] Sentence matched: {entry.msgid}")
             
             if entry.msgstr != weblate_po[idx].msgstr:
                 print(f"[ERROR] Translation did not match: {entry.msgstr}")
                 print(f"[ERROR] Expected: {entry.msgstr}")
                 print(f"[ERROR] Actual: {weblate_po[idx].msgstr}")
-            else:
-                print(f"[INFO] Translation matched: {entry.msgstr}")
+            # else:
+            #     print(f"[INFO] Translation matched: {entry.msgstr}")
         
         print("[INFO] Check sentence detail completed!")
 
