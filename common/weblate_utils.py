@@ -88,6 +88,19 @@ def get_filemask(component_name: str) -> str:
 def get_version_name(version: str) -> str:
     return version.replace('/', '-')
 
+def get_pot_filename(component_name: str) -> str:
+    """Get the pot filename for the component
+    
+    :param component_name: The name of the component
+    :returns: The pot filename for the component
+    """
+    if component_name.endswith('-django'):
+        return "django.pot"
+    elif component_name.endswith('-djangojs'):
+        return "djangojs.pot"
+    else:
+        return f"{component_name}.pot"
+
 class WeblateConfig:
     """Object that stores Weblate configuration.
 
@@ -385,7 +398,7 @@ class WeblateUtils:
                 'repo': 'local:',
                 'vcs': 'local',
                 'source_language': 'en_US',
-                'new_base': f'{component_name}.pot',
+                'new_base': get_pot_filename(component_name),
                 'category': category_url,
             }
             _ = self._post(url=url, data=data, file=file, raise_error=True)
