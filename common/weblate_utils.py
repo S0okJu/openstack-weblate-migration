@@ -88,19 +88,6 @@ def get_filemask(component_name: str) -> str:
 def get_version_name(version: str) -> str:
     return version.replace('/', '-')
 
-def get_pot_filename(component_name: str) -> str:
-    """Get the pot filename for the component
-    
-    :param component_name: The name of the component
-    :returns: The pot filename for the component
-    """
-    if component_name.endswith('-django'):
-        return "django.pot"
-    elif component_name.endswith('-djangojs'):
-        return "djangojs.pot"
-    else:
-        return f"{component_name}.pot"
-
 class WeblateConfig:
     """Object that stores Weblate configuration.
 
@@ -398,7 +385,7 @@ class WeblateUtils:
                 'repo': 'local:',
                 'vcs': 'local',
                 'source_language': 'en_US',
-                'new_base': get_pot_filename(component_name),
+                'new_base': f'{component_name}.pot',
                 'category': category_url,
             }
             _ = self._post(url=url, data=data, file=file, raise_error=True)
@@ -532,14 +519,23 @@ class WeblateUtils:
     
     def check_sentence_count(
         self,
+        project_name: str,
+        category_name: str,
+        component_name: str,
+        locale: str,
         zanata_po_path: str,
-        weblate_po_path: str
+        weblate_po_path: str,
+        retry_cnt: int = 0
     ) -> None:
         """Check the sentence count of the translation
         
         :param zanata_po_path: Path to the zanata po file
         :param weblate_po_path: Path to the weblate po file
         """
+        if retry_cnt == 3:
+            print(f"[ERROR] We retry 3 times, but the sentence count is not matched. Please check the translation file manually.")
+            return 
+        
         zanata_po = polib.pofile(zanata_po_path)
         weblate_po = polib.pofile(weblate_po_path)
         
@@ -548,13 +544,38 @@ class WeblateUtils:
         
         if zanata_total_count != weblate_total_count:
             print(f"[ERROR] Sentence count mismatch: {zanata_total_count} != {weblate_total_count}")
-        # else:
-        #     print(f"[INFO] Sentence total count matched!: {zanata_total_count}")
-        
+            
+            # retry if total count is not matched,
+            # try uploading the po file again. 
+            self.upload_po_file(
+                project_name, 
+                category_name, 
+                component_name, 
+                locale, 
+                zanata_po_path
+            )
+            
+            time.sleep(10)
+            
+            return self.check_sentence_count(
+                project_name, 
+                category_name, 
+                component_name, 
+                locale, 
+                zanata_po_path, 
+                weblate_po_path, 
+                retry_cnt + 1
+            )
+            
+        print(f"[INFO] Sentence total count matched!: {zanata_total_count}")
         if zanata_po.translated_entries() != weblate_po.translated_entries():
             print(f"[ERROR] Translated sentence count mismatch: {len(zanata_po.translated_entries())} != {len(weblate_po.translated_entries())}")
-        # else:
-        #     print(f"[INFO] Translated sentence count matched!: {len(zanata_po.translated_entries())}")
+            return self.check_sentence_detail(
+                project_name, category_name, component_name, locale, zanata_po_path, weblate_po_path, retry_cnt + 1
+            )
+        
+        print("[INFO] Check sentence count completed!")
+        return
         
     def check_sentence_detail(
         self,
