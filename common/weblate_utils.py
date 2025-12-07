@@ -542,8 +542,8 @@ class WeblateUtils:
         zanata_po = polib.pofile(zanata_po_path)
         weblate_po = polib.pofile(weblate_po_path)
         
-        zanata_total_count = len(zanata_po.translated_entries()) + len(zanata_po.untranslated_entries())
-        weblate_total_count = len(weblate_po.translated_entries()) + len(weblate_po.untranslated_entries())
+        zanata_total_count = len(zanata_po)
+        weblate_total_count = len(weblate_po)
         
         if zanata_total_count != weblate_total_count:
             print(f"[ERROR] Sentence count mismatch: {zanata_total_count} != {weblate_total_count}")
@@ -592,22 +592,50 @@ class WeblateUtils:
         """
         zanata_po = polib.pofile(zanata_po_path)
         weblate_po = polib.pofile(weblate_po_path)
-        for idx, entry in enumerate(zanata_po):
-            if entry.msgid != weblate_po[idx].msgid:
-                print(f"[ERROR] Sentence did not match: {entry.msgid}")
-                print(f"[ERROR] Expected: {entry.msgid}")
-                print(f"[ERROR] Actual: {weblate_po[idx].msgid}")
-            # else:
-            #     print(f"[INFO] Sentence matched: {entry.msgid}")
-            
-            if entry.msgstr != weblate_po[idx].msgstr:
-                print(f"[ERROR] Translation did not match: {entry.msgstr}")
-                print(f"[ERROR] Expected: {entry.msgstr}")
-                print(f"[ERROR] Actual: {weblate_po[idx].msgstr}")
-            # else:
-            #     print(f"[INFO] Translation matched: {entry.msgstr}")
         
-        print("[INFO] Check sentence detail completed!")
+        # Filter out obsolete entries for accurate comparison
+        zanata_entries = [e for e in zanata_po if not e.obsolete]
+        weblate_entries = [e for e in weblate_po if not e.obsolete]
+        
+        # Create a dictionary for Weblate entries by msgid for fast lookup
+        weblate_dict = {entry.msgid: entry for entry in weblate_entries}
+        
+        mismatch_count = 0
+        missing_count = 0
+        
+        for zanata_entry in zanata_entries:
+            msgid = zanata_entry.msgid
+            
+            if msgid not in weblate_dict:
+                print(f"[ERROR] Missing in Weblate: msgid='{msgid}'")
+                missing_count += 1
+                continue
+            
+            weblate_entry = weblate_dict[msgid]
+            
+            # Compare msgstr (translation)
+            if zanata_entry.msgstr != weblate_entry.msgstr:
+                print(f"[ERROR] Translation mismatch for msgid: '{msgid}'")
+                print(f"[ERROR]   Zanata msgstr: '{zanata_entry.msgstr}'")
+                print(f"[ERROR]   Weblate msgstr: '{weblate_entry.msgstr}'")
+                mismatch_count += 1
+        
+        # Check for entries in Weblate but not in Zanata
+        zanata_msgids = {e.msgid for e in zanata_entries}
+        extra_in_weblate = [msgid for msgid in weblate_dict.keys() if msgid not in zanata_msgids]
+        
+        if extra_in_weblate:
+            print(f"[WARN] {len(extra_in_weblate)} entries in Weblate but not in Zanata")
+            for msgid in extra_in_weblate[:5]:  # Show first 5
+                print(f"[WARN]   Extra msgid: '{msgid}'")
+        
+        print(f"[INFO] Check sentence detail completed!")
+        print(f"[INFO] Total checked: {len(zanata_entries)}")
+        print(f"[INFO] Mismatches: {mismatch_count}")
+        print(f"[INFO] Missing in Weblate: {missing_count}")
+        
+        if mismatch_count > 0 or missing_count > 0:
+            print(f"[WARN] Found {mismatch_count} translation mismatches and {missing_count} missing entries")
 
             
 def setup_argument_parser():
