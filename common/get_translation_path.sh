@@ -13,6 +13,25 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+function sanitize_locale {
+    local locale=$1
+    
+    # Normalize locale code:
+    # - Language code: lowercase (Th -> th, JA -> ja)
+    # - Region code: uppercase (zh_tw -> zh_TW, pt_br -> pt_BR)
+    
+    if [[ "$locale" == *"_"* ]]; then
+        # Has region code (e.g., zh_tw, pt_BR, ko_kr)
+        IFS='_' read -r lang region <<< "$locale"
+        # Language to lowercase, region to uppercase
+        echo "${lang,,}_${region^^}"
+    else
+        # Single language code (e.g., Th, ja, DE)
+        # Convert to lowercase
+        echo "${locale,,}"
+    fi
+}
+
 function get_pot_path {
     local component=$1
     local base_dir=${2:-$HOME/workspace/projects/$PROJECT/pot}
@@ -55,16 +74,9 @@ function get_po_path {
     local base_dir=${3:-$HOME/workspace/projects/$PROJECT/translations}
     local is_weblate=${4:-false}
 
-    # Weblate uses lowercase locale codes (Th -> th, pt_BR -> pt_br)
+    # For Weblate, normalize locale code
     if [ "$is_weblate" == "true" ]; then
-        # Convert to lowercase
-        if [[ "$locale" == *"_"* ]]; then
-            # Split by underscore and lowercase both parts
-            IFS='_' read -r lang country <<< "$locale"
-            locale="${lang,,}_${country,,}"
-        else
-            locale="${locale,,}"
-        fi
+        locale=$(sanitize_locale "$locale")
     fi
 
     local project_package_name="${PROJECT//-/_}"
