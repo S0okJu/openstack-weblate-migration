@@ -542,11 +542,13 @@ class WeblateUtils:
         zanata_po = polib.pofile(zanata_po_path)
         weblate_po = polib.pofile(weblate_po_path)
         
-        zanata_active = [e for e in zanata_po if not e.obsolete]  # 100개
-        weblate_active = [e for e in weblate_po if not e.obsolete]  # 100개
+        # In weblate, the obsolete entries are deleted automatically.
+        # so we need to filter out the obsolete entries for accurate comparison.
+        zanata_active = [e for e in zanata_po if not e.obsolete] 
+        weblate_active = [e for e in weblate_po if not e.obsolete]
         
         if len(zanata_active) != len(weblate_active):
-            print(f"[ERROR] Sentence count mismatch: {zanata_total_count} != {weblate_total_count}")
+            print(f"[ERROR] Sentence count mismatch: {len(zanata_active)} != {len(weblate_active)}")
             
             # retry if total count is not matched,
             # try uploading the po file again. 
