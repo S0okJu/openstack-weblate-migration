@@ -41,6 +41,10 @@ function test_accuracy {
 
             echo "[INFO] Check the sentence detail..."
             python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-detail \
+                --project $PROJECT \
+                --category $ZANATA_VERSION \
+                --component $component \
+                --locale $locale \
                 --zanata-po-path $translation_path \
                 --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$ZANATA_VERSION true) 
             

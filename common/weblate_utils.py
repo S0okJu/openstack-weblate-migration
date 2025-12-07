@@ -619,11 +619,19 @@ class WeblateUtils:
         
     def check_sentence_detail(
         self,
+        project_name: str,
+        category_name: str,
+        component_name: str,
+        locale: str,
         zanata_po_path: str,
         weblate_po_path: str,
     ) -> None:
-        """Download translation file from Weblate and save to workspace.
+        """Check detailed translation matching and save statistics to TestResult.
         
+        :param project_name: Name of the project
+        :param category_name: Name of the category
+        :param component_name: Name of the component
+        :param locale: Locale code
         :param zanata_po_path: Path to the zanata po file
         :param weblate_po_path: Path to the weblate po file
         """
@@ -669,18 +677,42 @@ class WeblateUtils:
         zanata_msgids = {e.msgid for e in zanata_entries}
         extra_in_weblate = [msgid for msgid in weblate_dict.keys() if msgid not in zanata_msgids]
         
+        weblate_extra_count = len(extra_in_weblate)
         if extra_in_weblate:
-            error_msg = f"{len(extra_in_weblate)} entries in Weblate but not in Zanata"
+            error_msg = f"{weblate_extra_count} entries in Weblate but not in Zanata"
             print(f"[ERROR] {error_msg}")
-            for msgid in extra_in_weblate:
-                error_msg = f"Extra msgid in Weblate but not in Zanata: '{msgid}'"
-                print(f"[ERROR] {error_msg}")
-                errors.append(error_msg)
+            errors.append(error_msg)
+        
+        if errors:
+            self.test_result.add_locale_result_failed(
+                project_name=project_name, 
+                category_name=category_name, 
+                component_name=component_name, 
+                locale=locale,
+                errors=errors
+            )
+            return None
+        
+        weblate_translated = len([e for e in weblate_entries if e.translated()])
+        self.test_result.add_locale_result_success(
+            project_name=project_name, 
+            category_name=category_name, 
+            component_name=component_name, 
+            translated_count=weblate_translated,
+            locale=locale,
+            mismatched_count=mismatch_count,
+            weblate_missing_count=missing_count,
+            weblate_extra_count=weblate_extra_count
+        )
         
         print(f"[INFO] Check sentence detail completed!")
         print(f"[INFO] Total checked: {len(zanata_entries)}")
         print(f"[INFO] Mismatches: {mismatch_count}")
         print(f"[INFO] Missing in Weblate: {missing_count}")
+        print(f"[INFO] Extra in Weblate: {weblate_extra_count}")
+        print(f"[INFO] Check sentence detail completed!")
+        
+        return None
         
             
 def setup_argument_parser():
@@ -769,6 +801,14 @@ def setup_argument_parser():
     check_sentence_detail_parser = subparser.add_parser(
         'check-sentence-detail', help='Check the sentence detail of the translation')
     check_sentence_detail_parser.add_argument(
+        '--project', required=True, help='Name of the project')
+    check_sentence_detail_parser.add_argument(
+        '--category', required=True, help='Name of the category')
+    check_sentence_detail_parser.add_argument(
+        '--component', required=True, help='Name of the component')
+    check_sentence_detail_parser.add_argument(
+        '--locale', required=True, help='Name of the locale')
+    check_sentence_detail_parser.add_argument(
         '--zanata-po-path', required=True, help='Path to the zanata po file')
     check_sentence_detail_parser.add_argument(
         '--weblate-po-path', required=True, help='Path to the weblate po file')
@@ -832,6 +872,7 @@ def main():
                 
         elif args.command == 'check-sentence-detail':
             utils.check_sentence_detail(
+                args.project, args.category, args.component, args.locale,
                 args.zanata_po_path, args.weblate_po_path)
         else:
             parser.print_help()

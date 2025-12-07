@@ -36,9 +36,11 @@ Expected JSON structure:
                     "total_count": 100,
                     "locales": {
                         "en_US": {
-                            "total_count": 100,
                             "translated_count": 100,
                             "success": true,
+                            "mismatched_count": 0,
+                            "weblate_missing_count": 0,
+                            "weblate_extra_count":0, 
                             "errors": [],
                             "last_updated": "2025-01-01 12:00:00"
                         },
@@ -108,7 +110,8 @@ class TestResult:
     def _ensure_component(self,
         project_name: str, 
         category_name: str, 
-        component_name: str
+        component_name: str,
+        total_count: int = 0
     ) -> Dict:
         """Ensure component exists and return it"""
         category = self._ensure_category(project_name, category_name)
@@ -138,7 +141,10 @@ class TestResult:
         :param errors: List of error messages
         :return: Self for method chaining
         """
-        errors = self._result["projects"][project_name][category_name][component_name]["errors"].append(errors)
+        errors = errors or []
+        
+        # Ensure component exists
+        component = self._ensure_component(project_name, category_name, component_name)
         
         # Add/update locale result
         component["locales"][locale] = {
@@ -166,21 +172,32 @@ class TestResult:
         component_name: str,
         translated_count: int,
         locale: str,
+        mismatched_count: int = 0,
+        weblate_missing_count: int = 0,
+        weblate_extra_count: int = 0
     ) -> 'TestResult':  # Return self for method chaining
-        """Add test result for a specific locale failed
+        """Add test result for a specific locale success
         
         :param project_name: Name of the project (e.g., "horizon")
         :param category_name: Name of the category/version (e.g., "master")
         :param component_name: Name of the component (e.g., "horizon-django")
         :param locale: Locale code (e.g., "en_US", "ko_KR")
         :param translated_count: Number of translated entries
+        :param mismatched_count: Number of mismatched translations
+        :param weblate_missing_count: Number of entries missing in Weblate
+        :param weblate_extra_count: Number of extra entries in Weblate
         :return: Self for method chaining
         """
+        # Ensure component exists
+        component = self._ensure_component(project_name, category_name, component_name)
         
         # Add/update locale result
         component["locales"][locale] = {
             "translated_count": translated_count,
             "success": True,
+            "mismatched_count": mismatched_count,
+            "weblate_missing_count": weblate_missing_count,
+            "weblate_extra_count": weblate_extra_count,
             "errors": [],
             "last_updated": self._timestamp()
         }
