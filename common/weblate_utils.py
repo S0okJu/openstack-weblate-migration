@@ -533,7 +533,9 @@ class WeblateUtils:
         :param weblate_po_path: Path to the weblate po file
         """
         if retry_cnt == 3:
-            print(f"[ERROR] We retry 3 times, but the sentence count is not matched. Please check the translation file manually.")
+            print(f"[ERROR] We retry 3 times, but the sentence count is not matched. 
+                  Please check the translation file manually.
+                  zanata_po_path: {zanata_po_path}, weblate_po_path: {weblate_po_path}")
             return 
         
         zanata_po = polib.pofile(zanata_po_path)
@@ -676,6 +678,14 @@ def setup_argument_parser():
     check_sentence_count_parser = subparser.add_parser(
         'check-sentence-count', help='Check the sentence count of the translation')
     check_sentence_count_parser.add_argument(
+        '--project', required=True, help='Name of the project')
+    check_sentence_count_parser.add_argument(
+        '--category', required=True, help='Name of the category')
+    check_sentence_count_parser.add_argument(
+        '--component', required=True, help='Name of the component')
+    check_sentence_count_parser.add_argument(
+        '--locale', required=True, help='Name of the locale')
+    check_sentence_count_parser.add_argument(
         '--zanata-po-path', required=True, help='Path to the zanata po file')
     check_sentence_count_parser.add_argument(
         '--weblate-po-path', required=True, help='Path to the weblate po file')
@@ -722,6 +732,7 @@ def main():
                 args.project, args.po_path)
         elif args.command == 'check-sentence-count':
             utils.check_sentence_count(
+                args.project, args.category, args.component, args.locale,
                 args.zanata_po_path, args.weblate_po_path)
         elif args.command == 'check-sentence-detail':
             utils.check_sentence_detail(
