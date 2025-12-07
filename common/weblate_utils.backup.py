@@ -17,7 +17,6 @@ from collections import defaultdict
 import io
 import json
 import os
-from pathlib import Path
 import re
 import sys
 import time
@@ -25,9 +24,6 @@ from urllib.parse import urljoin
 import zipfile
 import polib
 import requests
-
-# Import TestResult for statistics
-from test_result import TestResult
 
 
 def sanitize_locale(locale: str) -> str:
@@ -106,12 +102,11 @@ class WeblateConfig:
 
 class WeblateUtils:
     """Utilities for managing Weblate features"""
-    def __init__(self, config: WeblateConfig, result_json_path: str = None):
+    def __init__(self, config: WeblateConfig):
         self.config: WeblateConfig = config
         # All of the API calls are prefixed with api/
         self.base_url = urljoin(self.config.base_url, 'api/')
-        # Initialize TestResult for statistics
-        self.test_result = TestResult(Path(result_json_path) if result_json_path else None)
+        # self.test_result = TestResult("result.json")
 
     @property
     def _headers(self) -> dict:
@@ -538,19 +533,10 @@ class WeblateUtils:
         :param zanata_po_path: Path to the zanata po file
         :param weblate_po_path: Path to the weblate po file
         """
-        errors = []
-        
         if retry_cnt == 3:
-            error_msg = f"Failed after 3 retries. Check files manually."
-            print(f"[ERROR] {error_msg}")
-            print(f"[ERROR] zanata: {zanata_po_path}, weblate: {weblate_po_path}")
-            errors.append(error_msg)
-            
-            # Save failed result
-            self.test_result.add_locale_result(
-                project_name, category_name, component_name, locale,
-                total_count=0, translated_count=0, 
-                success=False, errors=errors
+            print(f"[ERROR] We retry 3 times, but the sentence count is not matched. \
+                Please check the translation file manually. \
+                zanata_po_path: {zanata_po_path}, weblate_po_path: {weblate_po_path}"
             )
             return 
         
@@ -562,14 +548,8 @@ class WeblateUtils:
         zanata_active = [e for e in zanata_po if not e.obsolete] 
         weblate_active = [e for e in weblate_po if not e.obsolete]
         
-        total_count = len(zanata_active)
-        zanata_translated = len([e for e in zanata_active if e.translated()])
-        weblate_translated = len([e for e in weblate_active if e.translated()])
-        
         if len(zanata_active) != len(weblate_active):
-            error_msg = f"Sentence count mismatch: {len(zanata_active)} != {len(weblate_active)}"
-            print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
+            print(f"[ERROR] Sentence count mismatch: {len(zanata_active)} != {len(weblate_active)}")
             
             # retry if total count is not matched,
             # try uploading the po file again. 
@@ -593,29 +573,16 @@ class WeblateUtils:
                 retry_cnt + 1
             )
         
+          
         print(f"[INFO] Sentence total count matched!: {len(zanata_active)}")
+        if zanata_po.translated_entries() != weblate_po.translated_entries():
+            print(f"[ERROR] Translated sentence count mismatch: {len(zanata_po.translated_entries())} != {len(weblate_po.translated_entries())}")
+            return self.check_sentence_detail(
+                project_name, category_name, component_name, locale, zanata_po_path, weblate_po_path, retry_cnt + 1
+            )
         
-        if zanata_translated != weblate_translated:
-            error_msg = f"Translated count mismatch: {zanata_translated} != {weblate_translated}"
-            print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
-            
-            # Check detail for more info
-            self.check_sentence_detail(zanata_po_path, weblate_po_path)
-        else:
-            print(f"[INFO] Translated sentence count matched!: {zanata_translated}")
-        
+        print(f"[INFO] Translated sentence count matched!: {len(zanata_po.translated_entries())}")
         print("[INFO] Check sentence count completed!")
-        
-        # Save result to TestResult
-        self.test_result.add_locale_result(
-            project_name, category_name, component_name, locale,
-            total_count=total_count,
-            translated_count=weblate_translated,
-            success=len(errors) == 0,
-            errors=errors
-        )
-        
         return
         
     def check_sentence_detail(
@@ -756,8 +723,6 @@ def setup_argument_parser():
         '--zanata-po-path', required=True, help='Path to the zanata po file')
     check_sentence_count_parser.add_argument(
         '--weblate-po-path', required=True, help='Path to the weblate po file')
-    check_sentence_count_parser.add_argument(
-        '--result-json', required=False, help='Path to save result JSON file')
     # Check sentence detail command
     check_sentence_detail_parser = subparser.add_parser(
         'check-sentence-detail', help='Check the sentence detail of the translation')
@@ -772,18 +737,14 @@ def main():
     """Main entry point for the script."""
     try:
         config = WeblateConfig()
-        
+        utils = WeblateUtils(config)
+
         parser = setup_argument_parser()
         args = parser.parse_args()
 
         if not args.command:
             parser.print_help()
             sys.exit(1)
-        
-        # Get result JSON path from args if available
-        result_json_path = getattr(args, 'result_json', None)
-        utils = WeblateUtils(config, result_json_path)
-        
         if args.command == 'create-project':
             utils.create_project(args.project)
         elif args.command == 'create-category':
@@ -807,22 +768,6 @@ def main():
             utils.check_sentence_count(
                 args.project, args.category, args.component, args.locale,
                 args.zanata_po_path, args.weblate_po_path)
-            
-            # Save result to JSON if path provided
-            if result_json_path:
-                utils.test_result.save_to_json()
-                
-                # Print statistics
-                success_rate = utils.test_result.get_success_rate(
-                    args.project, args.category, args.component
-                )
-                locales = utils.test_result.get_component_locales(
-                    args.project, args.category, args.component
-                )
-                print(f"\n[STATS] Component: {args.component}")
-                print(f"[STATS] Total locales tested: {len(locales)}")
-                print(f"[STATS] Success rate: {success_rate:.1f}%")
-                
         elif args.command == 'check-sentence-detail':
             utils.check_sentence_detail(
                 args.zanata_po_path, args.weblate_po_path)
@@ -831,8 +776,6 @@ def main():
             sys.exit(1)
     except Exception as e:
         print(f"[ERROR] Failed to migrate: {e}")
-        import traceback
-        traceback.print_exc()
 
 if __name__ == "__main__":
     main()

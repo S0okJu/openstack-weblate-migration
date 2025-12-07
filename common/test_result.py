@@ -12,9 +12,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Any
 import json
-import os
 
 """
 Expected JSON structure:
@@ -58,26 +60,52 @@ Expected JSON structure:
 
 
 class TestResult:
-    def __init__(self, json_path: str = None):
+    """Test result manager for translation accuracy testing"""
+    
+    def __init__(self, json_path: Optional[Path] = None):
         """Initialize TestResult
         
         :param json_path: Path to existing JSON file to load
         """
-        if json_path and os.path.exists(json_path):
-            self.load_from_json(json_path)
-        else:
-            self.result = {"projects": {}}
-    def add_project(self, project_name: str) -> None:
-        pass 
+        self.json_path = Path(json_path) if json_path else None
+        self._result: Dict[str, Any] = {"projects": {}}
+        
+        if self.json_path and self.json_path.exists():
+            self.load_from_json(self.json_path)
     
-    def add_category(self, project_name: str, category_name: str) -> None:
-        pass 
+    @property
+    def projects(self) -> Dict:
+        """Get projects dictionary"""
+        return self._result["projects"]
     
-    def add_metadata(self, project_name: str, category_name: str, total_components: int, total_locales: int, locales: list) -> None:
-        pass 
+    @staticmethod
+    def _timestamp() -> str:
+        """Get current timestamp string"""
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    def add_component(self, project_name: str, category_name: str, component_name: str) -> None:
-        pass 
+    def _ensure_project(self, project_name: str) -> Dict:
+        """Ensure project exists and return it"""
+        if project_name not in self.projects:
+            self.projects[project_name] = {}
+        return self.projects[project_name]
+    
+    def _ensure_category(self, project_name: str, category_name: str) -> Dict:
+        """Ensure category exists and return it"""
+        project = self._ensure_project(project_name)
+        if category_name not in project:
+            project[category_name] = {"last_updated": self._timestamp()}
+        return project[category_name]
+    
+    def _ensure_component(self, project_name: str, category_name: str, 
+                         component_name: str, total_count: int = 0) -> Dict:
+        """Ensure component exists and return it"""
+        category = self._ensure_category(project_name, category_name)
+        if component_name not in category:
+            category[component_name] = {
+                "total_count": total_count,
+                "locales": {}
+            }
+        return category[component_name] 
     
     
     def add_locale_result(
@@ -86,11 +114,12 @@ class TestResult:
         category_name: str,
         component_name: str,
         locale: str,
+        *,  # Force keyword-only arguments
         total_count: int,
         translated_count: int,
         success: bool,
-        errors: list
-    ) -> None:
+        errors: Optional[List[str]] = None
+    ) -> 'TestResult':  # Return self for method chaining
         """Add test result for a specific locale
         
         :param project_name: Name of the project (e.g., "horizon")
@@ -101,58 +130,113 @@ class TestResult:
         :param translated_count: Number of translated entries
         :param success: Whether the test passed
         :param errors: List of error messages
+        :return: Self for method chaining
         """
-        # Initialize project if not exists
-        if project_name not in self.result["projects"]:
-            self.result["projects"][project_name] = {}
+        errors = errors or []
         
-        # Initialize category if not exists
-        if category_name not in self.result["projects"][project_name]:
-            self.result["projects"][project_name][category_name] = {
-                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
+        # Ensure all parents exist
+        component = self._ensure_component(project_name, category_name, 
+                                          component_name, total_count)
         
-        # Initialize component if not exists
-        if component_name not in self.result["projects"][project_name][category_name]:
-            self.result["projects"][project_name][category_name][component_name] = {
-                "total_count": total_count,
-                "locales": {}
-            }
+        # Check if overwriting
+        if locale in component["locales"]:
+            print(f"[INFO] Overwriting result for "
+                  f"{project_name}/{category_name}/{component_name}/{locale}")
         
-        # Update total_count (use the latest value)
-        self.result["projects"][project_name][category_name][component_name]["total_count"] = total_count
+        # Update component total_count
+        component["total_count"] = total_count
         
-        # Add locale result
-        self.result["projects"][project_name][category_name][component_name]["locales"][locale] = {
+        # Add/update locale result
+        component["locales"][locale] = {
+            "total_count": total_count,
             "translated_count": translated_count,
             "success": success,
-            "errors": errors
+            "errors": errors,
+            "last_updated": self._timestamp()
         }
         
-        # Update last_updated timestamp
-        self.result["projects"][project_name][category_name]["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Update category timestamp
+        self._ensure_category(project_name, category_name)["last_updated"] = self._timestamp()
+        
+        return self  # Enable method chaining
     
-    def save_to_json(self, path: str) -> None:
+    def save_to_json(self, path: Optional[Path] = None) -> 'TestResult':
         """Save results to JSON file
         
-        :param path: Path to save the JSON file
+        :param path: Path to save the JSON file (uses self.json_path if not provided)
+        :return: Self for method chaining
         """
-        with open(path, 'w') as f:
-            json.dump(self.result, f, indent=2)
-        print(f"[INFO] Test results saved to: {path}")
+        save_path = Path(path) if path else self.json_path
+        if not save_path:
+            raise ValueError("No path provided and no default path set")
+        
+        # Ensure parent directory exists
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        with save_path.open('w', encoding='utf-8') as f:
+            json.dump(self._result, f, indent=2, ensure_ascii=False)
+        
+        print(f"[INFO] Test results saved to: {save_path}")
+        return self
     
-    def load_from_json(self, path: str) -> None:
+    def load_from_json(self, path: Path) -> 'TestResult':
         """Load results from JSON file
         
         :param path: Path to the JSON file
+        :return: Self for method chaining
         """
-        with open(path, 'r') as f:
-            self.result = json.load(f)
+        path = Path(path)
+        with path.open('r', encoding='utf-8') as f:
+            self._result = json.load(f)
+        
         print(f"[INFO] Test results loaded from: {path}")
+        return self
     
-    def get_result(self) -> dict:
+    def to_dict(self) -> Dict:
         """Get the complete result dictionary
         
         :returns: Complete test results
         """
-        return self.result
+        return self._result.copy()
+    
+    def get_component_locales(self, project_name: str, category_name: str, 
+                             component_name: str) -> List[str]:
+        """Get all locales for a component
+        
+        :returns: List of locale codes
+        """
+        try:
+            return list(self.projects[project_name][category_name]
+                       [component_name]["locales"].keys())
+        except KeyError:
+            return []
+    
+    def get_success_rate(self, project_name: str, category_name: str, 
+                        component_name: str) -> float:
+        """Calculate success rate for a component
+        
+        :returns: Success rate as percentage (0-100)
+        """
+        locales = self.get_component_locales(project_name, category_name, component_name)
+        if not locales:
+            return 0.0
+        
+        component = self.projects[project_name][category_name][component_name]
+        success_count = sum(
+            1 for locale in locales 
+            if component["locales"][locale].get("success", False)
+        )
+        
+        return (success_count / len(locales)) * 100
+    
+    def __repr__(self) -> str:
+        """String representation"""
+        total_projects = len(self.projects)
+        total_tests = sum(
+            len(category[comp]["locales"])
+            for project in self.projects.values()
+            for category in project.values()
+            for comp in category.keys()
+            if comp != "last_updated"
+        )
+        return f"<TestResult: {total_projects} projects, {total_tests} tests>"
