@@ -151,7 +151,7 @@ class WeblateUtils:
             if raise_error:
                 response.raise_for_status()
             return response
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as e:
             print(f"[ERROR] Failed to get: {url}")
             print(f"[ERROR] Exception: {e}")
             sys.exit(1)

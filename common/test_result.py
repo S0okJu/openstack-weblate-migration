@@ -93,7 +93,14 @@ class TestResult:
         """Ensure category exists and return it"""
         project = self._ensure_project(project_name)
         if category_name not in project:
-            project[category_name] = {"last_updated": self._timestamp()}
+            project[category_name] = {
+                "metadata": {
+                    "total_components": 0,
+                    "total_locales": 0,
+                    "locales": []
+                },
+                "last_updated": self._timestamp()
+            }
         return project[category_name]
     
     def _ensure_component(self, project_name: str, category_name: str, 
@@ -155,10 +162,37 @@ class TestResult:
             "last_updated": self._timestamp()
         }
         
-        # Update category timestamp
-        self._ensure_category(project_name, category_name)["last_updated"] = self._timestamp()
+        # Update category metadata and timestamp
+        self._update_category_metadata(project_name, category_name)
         
         return self  # Enable method chaining
+    
+    def _update_category_metadata(self, project_name: str, category_name: str) -> None:
+        """Update category metadata based on current data
+        
+        :param project_name: Name of the project
+        :param category_name: Name of the category
+        """
+        category = self._ensure_category(project_name, category_name)
+        
+        # Collect all locales and components
+        all_locales = set()
+        components = [key for key in category.keys() 
+                     if key not in ['metadata', 'last_updated']]
+        
+        for comp_name in components:
+            comp_locales = category[comp_name].get("locales", {}).keys()
+            all_locales.update(comp_locales)
+        
+        # Update metadata
+        category["metadata"] = {
+            "total_components": len(components),
+            "total_locales": len(all_locales),
+            "locales": sorted(all_locales)
+        }
+        
+        # Update timestamp
+        category["last_updated"] = self._timestamp()
     
     def save_to_json(self, path: Optional[Path] = None) -> 'TestResult':
         """Save results to JSON file
@@ -169,6 +203,11 @@ class TestResult:
         save_path = Path(path) if path else self.json_path
         if not save_path:
             raise ValueError("No path provided and no default path set")
+        
+        # Update all category metadata before saving
+        for project_name, project in self.projects.items():
+            for category_name in project.keys():
+                self._update_category_metadata(project_name, category_name)
         
         # Ensure parent directory exists
         save_path.parent.mkdir(parents=True, exist_ok=True)
