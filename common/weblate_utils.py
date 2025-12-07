@@ -603,7 +603,6 @@ class WeblateUtils:
             return None
         
         print(f"[INFO] ✓ Translated sentence count matched: {zanata_translated}")
-        print(f"[INFO] ========== Check sentence COUNT completed ==========\n")
         
         # Save result to TestResult
         self.test_result.add_locale_result_success(
@@ -613,6 +612,12 @@ class WeblateUtils:
             translated_count=weblate_translated,
             locale=locale
         )
+        
+        # Immediately save to JSON so next process can read it
+        if self.test_result.json_path:
+            self.test_result.save_to_json()
+        
+        print(f"[INFO] ========== Check sentence COUNT completed ==========\n")
         
         return None
         
@@ -683,21 +688,40 @@ class WeblateUtils:
                 print(f"[WARN]   Extra msgid: '{msgid[:50]}'")
         
         # Update existing locale result with detail statistics
-        try:
-            category = self.test_result.projects[project_name][category_name]
-            component = category[component_name]
-            if locale in component.get("locales", {}):
-                # Update existing entry with detail counts
-                component["locales"][locale].update({
-                    "mismatched_count": mismatch_count,
-                    "weblate_missing_count": missing_count,
-                    "weblate_extra_count": weblate_extra_count
-                })
-                print(f"[INFO] Updated detail statistics for {locale}")
-            else:
-                print(f"[WARN] No existing result for {locale}, skipping detail update")
-        except KeyError as e:
-            print(f"[WARN] Could not update detail statistics: {e}")
+        print(f"[DEBUG] Updating detail stats for {project_name}/{category_name}/{component_name}/{locale}")
+        print(f"[DEBUG] Available projects: {list(self.test_result.projects.keys())}")
+        
+        if project_name not in self.test_result.projects:
+            print(f"[WARN] Project '{project_name}' not found in test results, cannot update detail")
+            return
+        
+        if category_name not in self.test_result.projects[project_name]:
+            print(f"[WARN] Category '{category_name}' not found in test results, cannot update detail")
+            return
+        
+        category = self.test_result.projects[project_name][category_name]
+        
+        if component_name not in category:
+            print(f"[WARN] Component '{component_name}' not found in test results, cannot update detail")
+            return
+        
+        component = category[component_name]
+        
+        if locale not in component.get("locales", {}):
+            print(f"[WARN] Locale '{locale}' not found in test results, cannot update detail")
+            return
+        
+        # Update existing entry with detail counts
+        component["locales"][locale].update({
+            "mismatched_count": mismatch_count,
+            "weblate_missing_count": missing_count,
+            "weblate_extra_count": weblate_extra_count
+        })
+        print(f"[INFO] ✓ Updated detail statistics for {locale}")
+        
+        # Save to JSON after updating
+        if self.test_result.json_path:
+            self.test_result.save_to_json()
         
         print(f"[INFO] ========== Check sentence DETAIL completed ==========")
         print(f"[INFO] Total checked: {len(zanata_entries)}")
@@ -849,21 +873,6 @@ def main():
             utils.check_sentence_count(
                 args.project, args.category, args.component, args.locale,
                 args.zanata_po_path, args.weblate_po_path)
-            
-            # Save result to JSON if path provided
-            if result_json_path:
-                utils.test_result.save_to_json()
-                
-                # Print statistics
-                success_rate = utils.test_result.get_success_rate(
-                    args.project, args.category, args.component
-                )
-                locales = utils.test_result.get_component_locales(
-                    args.project, args.category, args.component
-                )
-                print(f"\n[STATS] Component: {args.component}")
-                print(f"[STATS] Total locales tested: {len(locales)}")
-                print(f"[STATS] Success rate: {success_rate:.1f}%")
                 
         elif args.command == 'check-sentence-detail':
             utils.check_sentence_detail(

@@ -256,7 +256,7 @@ class TestResult:
         with save_path.open('w', encoding='utf-8') as f:
             json.dump(self._result, f, indent=2, ensure_ascii=False)
         
-        print(f"[INFO] Test results saved to: {save_path}")
+        print(f"[INFO] ✓ Test results saved to: {save_path}")
         return self
     
     def load_from_json(self, path: Path) -> 'TestResult':
@@ -268,8 +268,6 @@ class TestResult:
         path = Path(path)
         with path.open('r', encoding='utf-8') as f:
             self._result = json.load(f)
-        
-        print(f"[INFO] Test results loaded from: {path}")
         return self
     
     def to_dict(self) -> Dict:
