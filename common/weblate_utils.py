@@ -146,8 +146,8 @@ class WeblateUtils:
                 response.raise_for_status()
             return response
         except requests.exceptions.RequestException:
-            print("[ERROR] Failed to get: ",
-                  json.dumps(response.json()))
+            print(f"[ERROR] Failed to get: {url}")
+            print(f"[ERROR] Exception: {e}")
             sys.exit(1)
 
     def _post(
@@ -188,9 +188,9 @@ class WeblateUtils:
                 response.raise_for_status()
 
             return response
-        except requests.exceptions.RequestException:
-            print("[ERROR] Failed to post: ",
-                  json.dumps(response.json()))
+        except requests.exceptions.RequestException as e:
+            print(f"[ERROR] Failed to post: {url}")
+            print(f"[ERROR] Exception: {e}")
             sys.exit(1)
 
     def _build_category_list(self, project_name: str) -> dict:
