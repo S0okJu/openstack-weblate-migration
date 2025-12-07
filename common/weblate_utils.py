@@ -601,7 +601,7 @@ class WeblateUtils:
             )
             return None
         
-        print(f"[INFO] ✓ Count matched: {len(zanata_active)} total, {zanata_translated} translated")
+        print(f"[INFO] ✓ Count matched(translated/total): {zanata_translated}/{len(zanata_active)}")
         
         # Save result to TestResult
         self.test_result.add_locale_result_success(
@@ -680,29 +680,31 @@ class WeblateUtils:
         
         weblate_extra_count = len(extra_in_weblate)
         if extra_in_weblate:
-            print(f"[WARN] {weblate_extra_count} entries in Weblate but not in Zanata")
-            for msgid in extra_in_weblate[:5]:  # Show first 5
-                print(f"[WARN]   Extra msgid: '{msgid[:50]}'")
+            print(f"[ERROR] {weblate_extra_count} entries in Weblate but not in Zanata")
+            
+            # show first 5 extra entries on weblate
+            for msgid in extra_in_weblate[:5]:
+                error_msg = f"Extra msgid on weblate: '{msgid[:50]}'"
+                print(f"[ERROR] {error_msg}")
+                errors.append(error_msg)
         
         # Update existing locale result with detail statistics
         if project_name not in self.test_result.projects:
-            print(f"[WARN] Project '{project_name}' not found in test results, cannot update detail")
+            print(f"[ERROR] Project '{project_name}' not found in test results, cannot update detail")
             return
         
         if category_name not in self.test_result.projects[project_name]:
-            print(f"[WARN] Category '{category_name}' not found in test results, cannot update detail")
+            print(f"[ERROR] Category '{category_name}' not found in test results, cannot update detail")
             return
         
         category = self.test_result.projects[project_name][category_name]
-        
         if component_name not in category:
-            print(f"[WARN] Component '{component_name}' not found in test results, cannot update detail")
+            print(f"[ERROR] Component '{component_name}' not found in test results, cannot update detail")
             return
         
         component = category[component_name]
-        
         if locale not in component.get("locales", {}):
-            print(f"[WARN] Locale '{locale}' not found in test results, cannot update detail")
+            print(f"[ERROR] Locale '{locale}' not found in test results, cannot update detail")
             return
         
         # Update existing entry with detail counts
@@ -712,21 +714,28 @@ class WeblateUtils:
             "weblate_extra_count": weblate_extra_count
         })
         
+        self.test_result.add_locale_result_failed(
+            project_name=project_name, 
+            category_name=category_name, 
+            component_name=component_name, 
+            locale=locale,
+            errors=errors
+        )
+        
         # Save to JSON after updating
         if self.test_result.json_path:
             self.test_result.save_to_json()
         
-        # Print summary
         if mismatch_count == 0 and missing_count == 0 and weblate_extra_count == 0:
             print(f"[INFO] ✓ Sentence detail matched: {len(zanata_entries)} entries")
         else:
-            print(f"[INFO] Sentence detail check completed with issues:")
+            print(f"[ERROR] Sentence detail check completed with issues:")
             if mismatch_count > 0:
-                print(f"[INFO]   - Mismatches: {mismatch_count}")
+                print(f"[ERROR]   - Mismatches: {mismatch_count}")
             if missing_count > 0:
-                print(f"[INFO]   - Missing in Weblate: {missing_count}")
+                print(f"[ERROR]   - Missing in Weblate: {missing_count}")
             if weblate_extra_count > 0:
-                print(f"[INFO]   - Extra in Weblate: {weblate_extra_count}")
+                print(f"[ERROR]   - Extra in Weblate: {weblate_extra_count}")
         
         return None
         
