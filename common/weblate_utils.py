@@ -106,6 +106,7 @@ class WeblateUtils:
         self.config: WeblateConfig = config
         # All of the API calls are prefixed with api/
         self.base_url = urljoin(self.config.base_url, 'api/')
+        self.test_result = TestResult("result.json")
 
     @property
     def _headers(self) -> dict:
@@ -571,14 +572,16 @@ class WeblateUtils:
                 weblate_po_path, 
                 retry_cnt + 1
             )
-            
-        print(f"[INFO] Sentence total count matched!: {zanata_total_count}")
+        
+          
+        print(f"[INFO] Sentence total count matched!: {len(zanata_active)}")
         if zanata_po.translated_entries() != weblate_po.translated_entries():
             print(f"[ERROR] Translated sentence count mismatch: {len(zanata_po.translated_entries())} != {len(weblate_po.translated_entries())}")
             return self.check_sentence_detail(
                 project_name, category_name, component_name, locale, zanata_po_path, weblate_po_path, retry_cnt + 1
             )
         
+        print(f"[INFO] Translated sentence count matched!: {len(zanata_po.translated_entries())}")
         print("[INFO] Check sentence count completed!")
         return
         
