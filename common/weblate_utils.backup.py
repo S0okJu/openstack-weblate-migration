@@ -69,7 +69,7 @@ def get_filemask(component_name: str) -> str:
     :returns: string filemask for the component
     """
     if component_name == 'releasenotes':
-        return 'locale/source/*/LC_MESSAGES/releasenotes.po'
+        return 'source/locale/*/LC_MESSAGES/releasenotes.po'
     # In Weblate, it doesn't allow the same component name.
     # When the project has multiple horizon modules,
     # the component name is <module_name>-django/djangojs.
@@ -81,7 +81,7 @@ def get_filemask(component_name: str) -> str:
     # All of the doc components use the same filemask.
     # ex) doc, doc-install, etc.
     elif component_name.startswith('doc'):
-        return f'locale/source/*/LC_MESSAGES/{component_name}.po'
+        return f'source/locale/*/LC_MESSAGES/{component_name}.po'
     else:
         return f'locale/*/LC_MESSAGES/{component_name}.po'
 

@@ -73,7 +73,7 @@ def get_filemask(component_name: str) -> str:
     :returns: string filemask for the component
     """
     if component_name == 'releasenotes':
-        return 'locale/source/*/LC_MESSAGES/releasenotes.po'
+        return 'source/locale/*/LC_MESSAGES/releasenotes.po'
     # In Weblate, it doesn't allow the same component name.
     # When the project has multiple horizon modules,
     # the component name is <module_name>-django/djangojs.
@@ -85,7 +85,7 @@ def get_filemask(component_name: str) -> str:
     # All of the doc components use the same filemask.
     # ex) doc, doc-install, etc.
     elif component_name.startswith('doc'):
-        return f'locale/source/*/LC_MESSAGES/{component_name}.po'
+        return f'source/locale/*/LC_MESSAGES/{component_name}.po'
     else:
         return f'locale/*/LC_MESSAGES/{component_name}.po'
 
@@ -522,6 +522,50 @@ class WeblateUtils:
             sys.exit(1)
         
         return None
+    
+    def get_all_weblate_translation_stats(
+        self,
+        project_name: str,
+        category_name: str,
+        component_name: str
+    ) -> dict:
+        """Get all translation statistics for a component from Weblate API
+        
+        :param project_name: Name of the project
+        :param category_name: Name of the category
+        :param component_name: Name of the component
+        :returns: Dictionary mapping locale -> statistics
+        """
+        path = (f'components/{sanitize_slug(project_name)}/'
+                f'{sanitize_slug(category_name)}%252F'
+                f'{sanitize_slug(component_name)}/'
+                f'translations/')
+        url = urljoin(self.base_url, path)
+        
+        locale_stats = {}
+        
+        try:
+            print(f"[INFO] Fetching all translation stats for component: {component_name}")
+            response = self._get(url, raise_error=True)
+            results = response.json().get('results', [])
+            
+            for translation in results:
+                locale_code = translation.get('language_code', '')
+                stats = translation.get('statistics', {})
+                locale_stats[locale_code] = {
+                    'total': stats.get('total', 0),
+                    'translated': stats.get('translated', 0),
+                    'fuzzy': stats.get('fuzzy', 0),
+                    'untranslated': stats.get('total', 0) - stats.get('translated', 0),
+                }
+                print(f"[INFO]   {locale_code}: total={stats.get('total', 0)}, translated={stats.get('translated', 0)}")
+            
+            print(f"[INFO] Retrieved stats for {len(locale_stats)} locales")
+            return locale_stats
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to get Weblate statistics: {e}")
+            return {}
     
     def check_sentence_count(
         self,
