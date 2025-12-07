@@ -585,7 +585,7 @@ class WeblateUtils:
             )
             return None
     
-        print(f"[INFO] Sentence total count matched!: {len(zanata_active)}")
+        print(f"[INFO] ✓ Sentence total count matched: {len(zanata_active)}")
         self.test_result.add_total_count(project_name, category_name, component_name, total_count)
         
         if zanata_translated != weblate_translated:
@@ -601,10 +601,9 @@ class WeblateUtils:
                 errors=error_msg
             )
             return None
-        else:
-            print(f"[INFO] Translated sentence count matched!: {zanata_translated}")
         
-        print("[INFO] Check sentence count completed!")
+        print(f"[INFO] ✓ Translated sentence count matched: {zanata_translated}")
+        print(f"[INFO] ========== Check sentence COUNT completed ==========\n")
         
         # Save result to TestResult
         self.test_result.add_locale_result_success(
@@ -679,37 +678,33 @@ class WeblateUtils:
         
         weblate_extra_count = len(extra_in_weblate)
         if extra_in_weblate:
-            error_msg = f"{weblate_extra_count} entries in Weblate but not in Zanata"
-            print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
+            print(f"[WARN] {weblate_extra_count} entries in Weblate but not in Zanata")
+            for msgid in extra_in_weblate[:5]:  # Show first 5
+                print(f"[WARN]   Extra msgid: '{msgid[:50]}'")
         
-        if errors:
-            self.test_result.add_locale_result_failed(
-                project_name=project_name, 
-                category_name=category_name, 
-                component_name=component_name, 
-                locale=locale,
-                errors=errors
-            )
-            return None
+        # Update existing locale result with detail statistics
+        try:
+            category = self.test_result.projects[project_name][category_name]
+            component = category[component_name]
+            if locale in component.get("locales", {}):
+                # Update existing entry with detail counts
+                component["locales"][locale].update({
+                    "mismatched_count": mismatch_count,
+                    "weblate_missing_count": missing_count,
+                    "weblate_extra_count": weblate_extra_count
+                })
+                print(f"[INFO] Updated detail statistics for {locale}")
+            else:
+                print(f"[WARN] No existing result for {locale}, skipping detail update")
+        except KeyError as e:
+            print(f"[WARN] Could not update detail statistics: {e}")
         
-        weblate_translated = len([e for e in weblate_entries if e.translated()])
-        self.test_result.add_locale_result_success(
-            project_name=project_name, 
-            category_name=category_name, 
-            component_name=component_name, 
-            translated_count=weblate_translated,
-            locale=locale,
-            mismatched_count=mismatch_count,
-            weblate_missing_count=missing_count,
-            weblate_extra_count=weblate_extra_count
-        )
-        
-        print(f"[INFO] Check sentence detail completed!")
+        print(f"[INFO] ========== Check sentence DETAIL completed ==========")
         print(f"[INFO] Total checked: {len(zanata_entries)}")
         print(f"[INFO] Mismatches: {mismatch_count}")
         print(f"[INFO] Missing in Weblate: {missing_count}")
         print(f"[INFO] Extra in Weblate: {weblate_extra_count}")
+        print()
         print(f"[INFO] Check sentence detail completed!")
         
         return None

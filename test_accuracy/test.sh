@@ -25,7 +25,7 @@ function test_accuracy {
             local locale=$(extract_locale_from_path $translation_path)
             echo "[INFO] Testing accuracy for locale: $locale"
             
-            echo "[INFO] Check the sentence..."
+            echo "[INFO] Step 1/2: Check the sentence count..."
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-count \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
@@ -39,7 +39,7 @@ function test_accuracy {
                 exit 1
             fi
 
-            echo "[INFO] Check the sentence detail..."
+            echo "[INFO] Step 2/2: Check the sentence detail..."
             python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-detail \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
