@@ -29,7 +29,7 @@ function create_weblate_components {
     python3 -u $SCRIPTSDIR/common/weblate_utils.py create-category --project $PROJECT --category $ZANATA_VERSION || exit 1
     # Create components with the pot file for Weblate component initialization.
     for component in ${COMPONENTS[@]}; do
-        pot_path=$(get_pot_path $component $PROJECT/$ZANATA_VERSION)
+        pot_path=$(get_pot_path $component)
 
         python3 -u $SCRIPTSDIR/common/weblate_utils.py create-component \
             --project $PROJECT \
