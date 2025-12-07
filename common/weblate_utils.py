@@ -554,8 +554,8 @@ class WeblateUtils:
             )
             return 
         
-        zanata_po = polib.pofile(zanata_po_path)
-        weblate_po = polib.pofile(weblate_po_path)
+        zanata_po = polib.pofile(zanata_po_path, encoding='utf-8')
+        weblate_po = polib.pofile(weblate_po_path, encoding='utf-8')
         
         # In weblate, the obsolete entries are deleted automatically.
         # so we need to filter out the obsolete entries for accurate comparison.
@@ -628,8 +628,8 @@ class WeblateUtils:
         :param zanata_po_path: Path to the zanata po file
         :param weblate_po_path: Path to the weblate po file
         """
-        zanata_po = polib.pofile(zanata_po_path)
-        weblate_po = polib.pofile(weblate_po_path)
+        zanata_po = polib.pofile(zanata_po_path, encoding='utf-8')
+        weblate_po = polib.pofile(weblate_po_path, encoding='utf-8')
         
         # Filter out obsolete entries for accurate comparison
         zanata_entries = [e for e in zanata_po if not e.obsolete]
