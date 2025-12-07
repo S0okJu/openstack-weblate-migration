@@ -19,14 +19,11 @@ function test_accuracy {
     rm -f $PROJECT.zip
     
     for component in "${COMPONENTS[@]}"; do
-        echo "[INFO] Processing component: $component"
         # Get translation path list as an array
         local translation_path_array=($(get_translation_path_list $component))
-        echo "[INFO] Found ${#translation_path_array[@]} translation files for component: $component"
-        
         for translation_path in "${translation_path_array[@]}"; do
             local locale=$(extract_locale_from_path $translation_path)
-            echo "[INFO] Testing accuracy for locale: $locale, file: $(basename $translation_path)"
+            echo "[INFO] Testing accuracy for locale: $locale"
             
             echo "[INFO] Check the sentence..."
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-count \

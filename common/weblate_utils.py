@@ -553,7 +553,9 @@ class WeblateUtils:
                 success=False, errors=errors
             )
             return 
-        
+        print(f"[INFO] Read files: \
+            zanata: {zanata_po_path} \
+            weblate: {weblate_po_path}")
         zanata_po = polib.pofile(zanata_po_path)
         weblate_po = polib.pofile(weblate_po_path)
         
