@@ -179,7 +179,6 @@ class TestResult:
         
         # Add/update locale result
         component["locales"][locale] = {
-            "total_count": total_count,
             "translated_count": translated_count,
             "success": True,
             "errors": [],
