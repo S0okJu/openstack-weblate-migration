@@ -153,7 +153,8 @@ class WeblateUtils:
             return response
         except requests.exceptions.RequestException as e:
             print(f"[ERROR] Failed to get: {url}")
-            print(f"[ERROR] Exception: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"[ERROR] Response details: {e.response.text}")
             sys.exit(1)
 
     def _post(
@@ -197,6 +198,8 @@ class WeblateUtils:
         except requests.exceptions.RequestException as e:
             print(f"[ERROR] Failed to post: {url}")
             print(f"[ERROR] Exception: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"[ERROR] Response: {e.response.text}")
             sys.exit(1)
 
     def _build_category_list(self, project_name: str) -> dict:
