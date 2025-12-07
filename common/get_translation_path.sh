@@ -55,6 +55,18 @@ function get_po_path {
     local base_dir=${3:-$HOME/workspace/projects/$PROJECT/translations}
     local is_weblate=${4:-false}
 
+    # Weblate uses lowercase locale codes (Th -> th, pt_BR -> pt_br)
+    if [ "$is_weblate" == "true" ]; then
+        # Convert to lowercase
+        if [[ "$locale" == *"_"* ]]; then
+            # Split by underscore and lowercase both parts
+            IFS='_' read -r lang country <<< "$locale"
+            locale="${lang,,}_${country,,}"
+        else
+            locale="${locale,,}"
+        fi
+    fi
+
     local project_package_name="${PROJECT//-/_}"
     case $component in
         "releasenotes")
