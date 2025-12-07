@@ -542,10 +542,10 @@ class WeblateUtils:
         zanata_po = polib.pofile(zanata_po_path)
         weblate_po = polib.pofile(weblate_po_path)
         
-        zanata_total_count = len(zanata_po)
-        weblate_total_count = len(weblate_po)
+        zanata_active = [e for e in zanata_po if not e.obsolete]  # 100개
+        weblate_active = [e for e in weblate_po if not e.obsolete]  # 100개
         
-        if zanata_total_count != weblate_total_count:
+        if len(zanata_active) != len(weblate_active):
             print(f"[ERROR] Sentence count mismatch: {zanata_total_count} != {weblate_total_count}")
             
             # retry if total count is not matched,
