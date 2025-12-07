@@ -86,6 +86,14 @@ def get_filemask(component_name: str) -> str:
         return f'locale/*/LC_MESSAGES/{component_name}.po'
 
 def get_version_name(version: str) -> str:
+    """Get the version name for the category
+
+    :param version: string version to get the name
+    :returns: string version name
+    """
+    # In weblate, the version name is used as the category name.
+    # So we need to convert the version name to the category name.
+    # ex) 2025.02 -> 2025-02
     return version.replace('/', '-')
 
 class WeblateConfig:
@@ -146,9 +154,11 @@ class WeblateUtils:
             if raise_error:
                 response.raise_for_status()
             return response
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as e:
             print(f"[ERROR] Failed to get: {url}")
             print(f"[ERROR] Exception: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"[ERROR] Response: {e.response.text}")
             sys.exit(1)
 
     def _post(
@@ -500,7 +510,7 @@ class WeblateUtils:
         po_path: str,
     ) -> None:
         """Download translation file from Weblate
-        
+              
         :param project_name: Name of the project
         :param po_path: Path to the po file to save
         """
@@ -510,10 +520,16 @@ class WeblateUtils:
         if response.status_code == 200:
             with open(po_path, 'wb') as f:
                 f.write(response.content)
-            print(f"[INFO] Successfully downloaded translation file from: {url}")
+            print(
+                "[INFO] Successfully downloaded translation "
+                f"file from: {url}"
+            )
             print(f"[INFO] Saved to: {po_path}")
         else:
-            print(f"[ERROR] Failed to download translation file: {response.status_code}")
+            print(
+                "[ERROR] Failed to download translation file: "
+                f"{response.status_code}"
+            )
             sys.exit(1)
         
         return None
@@ -534,9 +550,12 @@ class WeblateUtils:
         :param weblate_po_path: Path to the weblate po file
         """
         if retry_cnt == 3:
-            print(f"[ERROR] We retry 3 times, but the sentence count is not matched. \
-                Please check the translation file manually. \
-                zanata_po_path: {zanata_po_path}, weblate_po_path: {weblate_po_path}"
+            print(
+                "[ERROR] We retry 3 times," 
+                "but the sentence count is not matched. "
+                "Please check the translation files manually. "
+                f"zanata_po_path: {zanata_po_path}, "
+                f"weblate_po_path: {weblate_po_path}"
             )
             return 
         
@@ -544,12 +563,17 @@ class WeblateUtils:
         weblate_po = polib.pofile(weblate_po_path)
         
         # In weblate, the obsolete entries are deleted automatically.
-        # so we need to filter out the obsolete entries for accurate comparison.
+        # so we need to filter out the obsolete entries
+        # for accurate comparison.
         zanata_active = [e for e in zanata_po if not e.obsolete] 
         weblate_active = [e for e in weblate_po if not e.obsolete]
         
         if len(zanata_active) != len(weblate_active):
-            print(f"[ERROR] Sentence count mismatch: {len(zanata_active)} != {len(weblate_active)}")
+            print(
+                "[ERROR] Sentence count mismatch: "
+                f"{len(zanata_active)}(zanata) != "
+                f"{len(weblate_active)}(weblate)"
+            )
             
             # retry if total count is not matched,
             # try uploading the po file again. 

@@ -45,7 +45,10 @@ ZANATA_LANG_RULES = {
     },
     'ar': {
         'region_code': ['ar'],
-        'plurals': 'nplurals=6; plural= n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5;'
+        'plurals': (
+            'nplurals=6; plural= n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : '
+            'n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5;'
+        )
     },
     'arn': {
         'region_code': ['arn'],
@@ -69,7 +72,10 @@ ZANATA_LANG_RULES = {
     },
     'be': {
         'region_code': ['be'],
-        'plurals': 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        'plurals': (
+            'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : '
+            'n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        )
     },
     'bg': {
         'region_code': ['bg_BG'],
@@ -93,7 +99,10 @@ ZANATA_LANG_RULES = {
     },
     'bs': {
         'region_code': ['bs'],
-        'plurals': 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        'plurals': (
+            'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : '
+            'n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        )
     },
     'ca': {
         'region_code': ['ca'],
@@ -105,15 +114,23 @@ ZANATA_LANG_RULES = {
     },
     'cs': {
         'region_code': ['cs'],
-        'plurals': 'nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2'
+        'plurals': (
+            'nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2'
+        )
     },
     'csb': {
         'region_code': ['csb'],
-        'plurals': 'nplurals=3; n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2'
+        'plurals': (
+            'nplurals=3; n==1 ? 0 : n%10>=2 && n%10<=4 && '
+            '(n%100<10 || n%100>=20) ? 1 : 2'
+        )
     },
     'cy': {
         'region_code': ['cy'],
-        'plurals': 'nplurals=4; plural= (n==1) ? 0 : (n==2) ? 1 : (n != 8 && n != 11) ? 2 : 3'
+        'plurals': (
+            'nplurals=4; plural= (n==1) ? 0 : (n==2) ? 1 : '
+            '(n != 8 && n != 11) ? 2 : 3'
+        )
     },
     'da': {
         'region_code': ['da'],
@@ -185,11 +202,16 @@ ZANATA_LANG_RULES = {
     },
     'ga': {
         'region_code': ['ga'],
-        'plurals': 'nplurals=5; plural=n==1 ? 0 : n==2 ? 1 : n<7 ? 2 : n<11 ? 3 : 4'
+        'plurals': (
+            'nplurals=5; plural= n==1 ? 0 : n==2 ? 1 : n<7 ? 2 : n<11 ? 3 : 4'
+        )
     },
     'gd': {
         'region_code': ['gd'],
-        'plurals': 'nplurals=4; plural=(n==1 || n==11) ? 0 : (n==2 || n==12) ? 1 : (n > 2 && n < 20) ? 2 : 3'
+        'plurals': (
+            'nplurals=4; plural=(n==1 || n==11) ? 0 : (n==2 || '
+            'n==12) ? 1 : (n > 2 && n < 20) ? 2 : 3'
+        )
     },
     'gl': {
         'region_code': ['gl'],
@@ -225,7 +247,10 @@ ZANATA_LANG_RULES = {
     },
     'hr': {
         'region_code': ['hr'],
-        'plurals': 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        'plurals': (
+            'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : '
+            'n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        )
     },
     'hu': {
         'region_code': ['hu'],
@@ -293,7 +318,9 @@ ZANATA_LANG_RULES = {
     },
     'kw': {
         'region_code': ['kw'],
-        'plurals': 'nplurals=4; plural= (n==1) ? 0 : (n==2) ? 1 : (n == 3) ? 2 : 3'
+        'plurals': (
+            'nplurals=4; plural= (n==1) ? 0 : (n==2) ? 1 : (n == 3) ? 2 : 3'
+        )
     },
     'ky': {
         'region_code': ['ky'],
@@ -313,11 +340,16 @@ ZANATA_LANG_RULES = {
     },
     'lt': {
         'region_code': ['lt'],
-        'plurals': 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        'plurals': (
+            'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : '
+            'n%10>=2 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        )
     },
     'lv': {
         'region_code': ['lv'],
-        'plurals': 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n != 0 ? 1 : 2)'
+        'plurals': (
+            'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n != 0 ? 1 : 2)'
+        )
     },
     'mai': {
         'region_code': ['mai'],
@@ -325,7 +357,10 @@ ZANATA_LANG_RULES = {
     },
     'me': {
         'region_code': ['me'],
-        'plurals': 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        'plurals': (
+            'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : '
+            'n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        )
     },
     'mfe': {
         'region_code': ['mfe'],
@@ -369,7 +404,10 @@ ZANATA_LANG_RULES = {
     },
     'mt': {
         'region_code': ['mt'],
-        'plurals': 'nplurals=4; plural=(n==1 ? 0 : n==0 || ( n%100>1 && n%100<11) ? 1 : (n%100>10 && n%100<20 ) ? 2 : 3)'
+        'plurals': (
+            'nplurals=4; plural=(n==1 ? 0 : n==0 || ( n%100>1 && '
+            'n%100<11) ? 1 : (n%100>10 && n%100<20 ) ? 2 : 3)'
+        )
     },
     'nah': {
         'region_code': ['nah'],
@@ -429,14 +467,17 @@ ZANATA_LANG_RULES = {
     },
     'pl': {
         'region_code': ['pl_PL'],
-        'plurals': 'nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        'plurals': (
+            'nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && '
+            '(n%100<10 || n%100>=20) ? 1 : 2)'
+        )
     },
     'pms': {
         'region_code': ['pms'],
         'plurals': 'nplurals=2; plural=(n != 1)'
     },
     'pt': {
-        'region_code': ['pt','pt_BR'],
+        'region_code': ['pt', 'pt_BR'],
         'plurals': 'nplurals=2; plural=(n != 1)'
     },
     'pt_BR': {
@@ -449,11 +490,17 @@ ZANATA_LANG_RULES = {
     },
     'ro': {
         'region_code': ['ro'],
-        'plurals': 'nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);'
+        'plurals': (
+            'nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && '
+            'n%100 < 20)) ? 1 : 2);'
+        )
     },
     'ru': {
         'region_code': ['ru'],
-        'plurals': 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        'plurals': (
+            'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : '
+            'n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        )
     },
     'sa': {
         'region_code': ['sa'],
@@ -481,7 +528,10 @@ ZANATA_LANG_RULES = {
     },
     'sl': {
         'region_code': ['sl_SI'],
-        'plurals': 'nplurals=4; plural=(n%100==1 ? 1 : n%100==2 ? 2 : n%100==3 || n%100==4 ? 3 : 0)'
+        'plurals': (
+            'nplurals=4; plural=(n%100==1 ? 1 : n%100==2 ? '
+            '2 : n%100==3 || n%100==4 ? 3 : 0)'
+        )
     },
     'so': {
         'region_code': ['so'],
@@ -497,7 +547,10 @@ ZANATA_LANG_RULES = {
     },
     'sr': {
         'region_code': ['sr'],
-        'plurals': 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        'plurals': (
+            'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : '
+            'n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        )
     },
     'su': {
         'region_code': ['su'],
@@ -549,7 +602,10 @@ ZANATA_LANG_RULES = {
     },
     'uk': {
         'region_code': ['uk'],
-        'plurals': 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        'plurals': (
+            'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : '
+            'n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)'
+        )
     },
     'ur': {
         'region_code': ['ur'],
