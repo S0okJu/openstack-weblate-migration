@@ -585,7 +585,6 @@ class WeblateUtils:
             )
             return None
     
-        print(f"[INFO] ✓ Sentence total count matched: {len(zanata_active)}")
         self.test_result.add_total_count(project_name, category_name, component_name, total_count)
         
         if zanata_translated != weblate_translated:
@@ -602,7 +601,7 @@ class WeblateUtils:
             )
             return None
         
-        print(f"[INFO] ✓ Translated sentence count matched: {zanata_translated}")
+        print(f"[INFO] ✓ Count matched: {len(zanata_active)} total, {zanata_translated} translated")
         
         # Save result to TestResult
         self.test_result.add_locale_result_success(
@@ -616,8 +615,6 @@ class WeblateUtils:
         # Immediately save to JSON so next process can read it
         if self.test_result.json_path:
             self.test_result.save_to_json()
-        
-        print(f"[INFO] ========== Check sentence COUNT completed ==========\n")
         
         return None
         
@@ -688,9 +685,6 @@ class WeblateUtils:
                 print(f"[WARN]   Extra msgid: '{msgid[:50]}'")
         
         # Update existing locale result with detail statistics
-        print(f"[DEBUG] Updating detail stats for {project_name}/{category_name}/{component_name}/{locale}")
-        print(f"[DEBUG] Available projects: {list(self.test_result.projects.keys())}")
-        
         if project_name not in self.test_result.projects:
             print(f"[WARN] Project '{project_name}' not found in test results, cannot update detail")
             return
@@ -717,19 +711,22 @@ class WeblateUtils:
             "weblate_missing_count": missing_count,
             "weblate_extra_count": weblate_extra_count
         })
-        print(f"[INFO] ✓ Updated detail statistics for {locale}")
         
         # Save to JSON after updating
         if self.test_result.json_path:
             self.test_result.save_to_json()
         
-        print(f"[INFO] ========== Check sentence DETAIL completed ==========")
-        print(f"[INFO] Total checked: {len(zanata_entries)}")
-        print(f"[INFO] Mismatches: {mismatch_count}")
-        print(f"[INFO] Missing in Weblate: {missing_count}")
-        print(f"[INFO] Extra in Weblate: {weblate_extra_count}")
-        print()
-        print(f"[INFO] Check sentence detail completed!")
+        # Print summary
+        if mismatch_count == 0 and missing_count == 0 and weblate_extra_count == 0:
+            print(f"[INFO] ✓ Sentence detail matched: {len(zanata_entries)} entries")
+        else:
+            print(f"[INFO] Sentence detail check completed with issues:")
+            if mismatch_count > 0:
+                print(f"[INFO]   - Mismatches: {mismatch_count}")
+            if missing_count > 0:
+                print(f"[INFO]   - Missing in Weblate: {missing_count}")
+            if weblate_extra_count > 0:
+                print(f"[INFO]   - Extra in Weblate: {weblate_extra_count}")
         
         return None
         

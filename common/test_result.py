@@ -256,7 +256,6 @@ class TestResult:
         with save_path.open('w', encoding='utf-8') as f:
             json.dump(self._result, f, indent=2, ensure_ascii=False)
         
-        print(f"[INFO] ✓ Test results saved to: {save_path}")
         return self
     
     def load_from_json(self, path: Path) -> 'TestResult':
