@@ -85,12 +85,15 @@ class TestResult:
     
     def _ensure_project(self, project_name: str) -> Dict:
         """Ensure project exists and return it"""
+        # Initialize project structure
         if project_name not in self.projects:
             self.projects[project_name] = {}
         return self.projects[project_name]
     
     def _ensure_category(self, project_name: str, category_name: str) -> Dict:
         """Ensure category exists and return it"""
+        
+        # Initialize category metadata
         project = self._ensure_project(project_name)
         if category_name not in project:
             project[category_name] = {
@@ -99,14 +102,17 @@ class TestResult:
                     "total_locales": 0,
                     "locales": []
                 },
-                "last_updated": self._timestamp()
             }
         return project[category_name]
     
-    def _ensure_component(self, project_name: str, category_name: str, 
-                         component_name: str, total_count: int = 0) -> Dict:
+    def _ensure_component(self,
+        project_name: str, 
+        category_name: str, 
+        component_name: str
+    ) -> Dict:
         """Ensure component exists and return it"""
         category = self._ensure_category(project_name, category_name)
+        # Initialize component structure
         if component_name not in category:
             category[component_name] = {
                 "total_count": total_count,
@@ -114,50 +120,30 @@ class TestResult:
             }
         return category[component_name] 
     
-    
-    def add_locale_result(
+    def add_locale_result_failed(
         self,
         project_name: str,
         category_name: str,
         component_name: str,
         locale: str,
-        *,  # Force keyword-only arguments
-        total_count: int,
-        translated_count: int,
-        success: bool,
         errors: Optional[List[str]] = None
     ) -> 'TestResult':  # Return self for method chaining
-        """Add test result for a specific locale
+        """Add test result for a specific locale failed
         
         :param project_name: Name of the project (e.g., "horizon")
         :param category_name: Name of the category/version (e.g., "master")
         :param component_name: Name of the component (e.g., "horizon-django")
         :param locale: Locale code (e.g., "en_US", "ko_KR")
-        :param total_count: Total number of translation entries
         :param translated_count: Number of translated entries
-        :param success: Whether the test passed
         :param errors: List of error messages
         :return: Self for method chaining
         """
-        errors = errors or []
-        
-        # Ensure all parents exist
-        component = self._ensure_component(project_name, category_name, 
-                                          component_name, total_count)
-        
-        # Check if overwriting
-        if locale in component["locales"]:
-            print(f"[INFO] Overwriting result for "
-                  f"{project_name}/{category_name}/{component_name}/{locale}")
-        
-        # Update component total_count
-        component["total_count"] = total_count
+        errors = self._result["projects"][project_name][category_name][component_name]["errors"].append(errors)
         
         # Add/update locale result
         component["locales"][locale] = {
-            "total_count": total_count,
-            "translated_count": translated_count,
-            "success": success,
+            "translated_count": 0,
+            "success": False,
             "errors": errors,
             "last_updated": self._timestamp()
         }
@@ -167,7 +153,46 @@ class TestResult:
         
         return self  # Enable method chaining
     
+    def add_total_count(self, project_name: str, category_name: str, component_name: str, total_count: int) -> 'TestResult':
+        """Add total count to the component"""
+        component = self._ensure_component(project_name, category_name, component_name)
+        component["total_count"] = total_count
+        return self
+    
+    def add_locale_result_success(
+        self,
+        project_name: str,
+        category_name: str,
+        component_name: str,
+        translated_count: int,
+        locale: str,
+    ) -> 'TestResult':  # Return self for method chaining
+        """Add test result for a specific locale failed
+        
+        :param project_name: Name of the project (e.g., "horizon")
+        :param category_name: Name of the category/version (e.g., "master")
+        :param component_name: Name of the component (e.g., "horizon-django")
+        :param locale: Locale code (e.g., "en_US", "ko_KR")
+        :param translated_count: Number of translated entries
+        :return: Self for method chaining
+        """
+        
+        # Add/update locale result
+        component["locales"][locale] = {
+            "total_count": total_count,
+            "translated_count": translated_count,
+            "success": True,
+            "errors": [],
+            "last_updated": self._timestamp()
+        }
+        
+        # Update category metadata and timestamp
+        self._update_category_metadata(project_name, category_name)
+        
+        return self  # Enable method chaining
+    
     def _update_category_metadata(self, project_name: str, category_name: str) -> None:
+    
         """Update category metadata based on current data
         
         :param project_name: Name of the project
