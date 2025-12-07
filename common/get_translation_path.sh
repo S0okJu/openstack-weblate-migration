@@ -185,6 +185,11 @@ function get_translation_path_list() {
     if [[ "$component" == "releasenotes" ]]; then
         # Special handling for releasenotes
         locale_list=($(find ${target_project_dir}/releasenotes -name "*.po" -path "*/locale/*/LC_MESSAGES/*.po" 2>/dev/null || echo ""))
+    
+    elif [[ "$component" == "django" ]]; then
+        locale_list=($(find ${target_project_dir}/${project_package_name} -name "*.po" -path "*/locale/*/LC_MESSAGES/django.po" 2>/dev/null || echo ""))
+    elif [[ "$component" == "djangojs" ]]; then
+        locale_list=($(find ${target_project_dir}/${project_package_name} -name "*.po" -path "*/locale/*/LC_MESSAGES/djangojs.po" 2>/dev/null || echo ""))
     elif [[ "$component" == *"-django" || "$component" == *"-djangojs" ]]; then
         # Django components are saved as django.pot, djangojs.pot
         sanitized_component=$(sanitize_django_component $component)
