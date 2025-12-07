@@ -533,9 +533,10 @@ class WeblateUtils:
         :param weblate_po_path: Path to the weblate po file
         """
         if retry_cnt == 3:
-            print(f"[ERROR] We retry 3 times, but the sentence count is not matched. 
-                  Please check the translation file manually.
-                  zanata_po_path: {zanata_po_path}, weblate_po_path: {weblate_po_path}")
+            print(f"[ERROR] We retry 3 times, but the sentence count is not matched. \
+                Please check the translation file manually. \
+                zanata_po_path: {zanata_po_path}, weblate_po_path: {weblate_po_path}"
+            )
             return 
         
         zanata_po = polib.pofile(zanata_po_path)
