@@ -181,6 +181,7 @@ function get_po_file_path() {
 function get_translation_path_list() {
     local component=$1
     local target_project_dir="$HOME/workspace/projects/$PROJECT/translations"
+    local project_package_name="${PROJECT//-/_}"
     
     if [[ "$component" == "releasenotes" ]]; then
         # Special handling for releasenotes
