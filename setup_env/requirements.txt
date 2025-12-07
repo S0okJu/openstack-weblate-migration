@@ -2,4 +2,3 @@ bindep
 polib==1.2.0
 lxml==5.3.0
 requests
-flake8

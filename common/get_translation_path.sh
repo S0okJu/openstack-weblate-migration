@@ -82,11 +82,7 @@ function get_po_path {
     local project_package_name="${PROJECT//-/_}"
     case $component in
         "releasenotes")
-            if [ "$is_weblate" == "true" ]; then
-                echo "$base_dir/$component/source/locale/$locale/LC_MESSAGES/$component.po"
-            else
-                echo "$base_dir/releasenotes/source/locale/$locale/LC_MESSAGES/releasenotes.po"
-            fi
+            echo "$base_dir/releasenotes/source/locale/$locale/LC_MESSAGES/releasenotes.po"
             ;;
         *-django)
             if [ "$is_weblate" == "true" ]; then

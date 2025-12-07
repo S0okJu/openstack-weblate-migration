@@ -557,6 +557,45 @@ class WeblateUtils:
         # errors for test result
         errors = []
 
+        # Check if files exist before parsing
+        if not os.path.exists(weblate_po_path):
+            error_msg = f"Weblate PO file does not exist: {weblate_po_path}"
+            print(f"[ERROR] {error_msg}")
+            errors.append(error_msg)
+            self.test_result.add_locale_result_failed(
+                project_name=project_name,
+                category_name=category_name,
+                component_name=component_name,
+                locale=locale,
+                errors=errors
+            )
+            return None
+
+        # Check file size and first few lines
+        file_size = os.path.getsize(weblate_po_path)
+        if file_size == 0:
+            error_msg = f"Weblate PO file is empty: {weblate_po_path}"
+            print(f"[ERROR] {error_msg}")
+            errors.append(error_msg)
+            self.test_result.add_locale_result_failed(
+                project_name=project_name,
+                category_name=category_name,
+                component_name=component_name,
+                locale=locale,
+                errors=errors
+            )
+            return None
+
+        # Read first few lines to debug
+        try:
+            with open(weblate_po_path, 'r', encoding='utf-8') as f:
+                first_lines = [f.readline() for _ in range(5)]
+            print(f"[DEBUG] Weblate PO file: {weblate_po_path}")
+            print(f"[DEBUG] File size: {file_size} bytes")
+            print(f"[DEBUG] First line: {first_lines[0].strip()[:100]}")
+        except Exception as e:
+            print(f"[WARN] Could not read file for debugging: {e}")
+
         zanata_po = polib.pofile(
             zanata_po_path, encoding='utf-8')
         weblate_po = polib.pofile(
@@ -670,6 +709,35 @@ class WeblateUtils:
         """
         # errors for test result
         errors = []
+
+        # Check if Weblate file exists before parsing
+        if not os.path.exists(weblate_po_path):
+            error_msg = f"Weblate PO file does not exist: {weblate_po_path}"
+            print(f"[ERROR] {error_msg}")
+            errors.append(error_msg)
+            self.test_result.add_locale_result_failed(
+                project_name=project_name,
+                category_name=category_name,
+                component_name=component_name,
+                locale=locale,
+                errors=errors
+            )
+            return None
+
+        # Check file size
+        file_size = os.path.getsize(weblate_po_path)
+        if file_size == 0:
+            error_msg = f"Weblate PO file is empty: {weblate_po_path}"
+            print(f"[ERROR] {error_msg}")
+            errors.append(error_msg)
+            self.test_result.add_locale_result_failed(
+                project_name=project_name,
+                category_name=category_name,
+                component_name=component_name,
+                locale=locale,
+                errors=errors
+            )
+            return None
 
         zanata_po = polib.pofile(zanata_po_path, encoding='utf-8')
         weblate_po = polib.pofile(weblate_po_path, encoding='utf-8')
