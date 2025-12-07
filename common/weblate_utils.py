@@ -811,8 +811,6 @@ def setup_argument_parser():
         '--zanata-po-path', required=True, help='Path to the zanata po file')
     check_sentence_count_parser.add_argument(
         '--weblate-po-path', required=True, help='Path to the weblate po file')
-    check_sentence_count_parser.add_argument(
-        '--result-json', required=False, help='Path to save result JSON file')
     # Check sentence detail command
     check_sentence_detail_parser = subparser.add_parser(
         'check-sentence-detail', help='Check the sentence detail of the translation')

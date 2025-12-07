@@ -32,8 +32,7 @@ function test_accuracy {
                 --component $component \
                 --locale $locale \
                 --zanata-po-path $translation_path \
-                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$ZANATA_VERSION true) \
-                --result-json $RESULT_JSON
+                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$ZANATA_VERSION true)
             then
                 echo "[ERROR] Check the sentence failed: $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
                 exit 1
@@ -46,8 +45,7 @@ function test_accuracy {
                 --component $component \
                 --locale $locale \
                 --zanata-po-path $translation_path \
-                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$ZANATA_VERSION true) \
-                --result-json $RESULT_JSON 
+                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$ZANATA_VERSION true) 
             
         done
     done
