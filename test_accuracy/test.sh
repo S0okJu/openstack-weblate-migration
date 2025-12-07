@@ -21,7 +21,7 @@ function test_accuracy {
     for component in "${COMPONENTS[@]}"; do
         echo ""
         echo "============================================================"
-        echo "[INFO] Component: $PROJECT / $ZANATA_VERSION / $component"
+        echo " Target: $PROJECT / $ZANATA_VERSION / $component"
         echo "============================================================"
         
         # Get translation path list as an array
@@ -57,6 +57,7 @@ function test_accuracy {
                 --result-json $RESULT_JSON 
             
         done
+        echo "[INFO] ✓ Component '$component' completed - tested ${#translation_path_array[@]} locales"
     done
 
     echo ""
