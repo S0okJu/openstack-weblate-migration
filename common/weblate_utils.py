@@ -106,7 +106,7 @@ class WeblateUtils:
         self.config: WeblateConfig = config
         # All of the API calls are prefixed with api/
         self.base_url = urljoin(self.config.base_url, 'api/')
-        self.test_result = TestResult("result.json")
+        # self.test_result = TestResult("result.json")
 
     @property
     def _headers(self) -> dict:

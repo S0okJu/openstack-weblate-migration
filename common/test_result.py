@@ -22,13 +22,23 @@ Expected JSON structure:
     "projects": {
         "horizon": {
             "master": {
+                "metadata": {
+                    "total_components": ,
+                    "total_locales": 50,
+                    "locales": [
+                        "en_US",
+                        "ko_KR",
+                    ]
+                },
                 "horizon-django": {
                     "total_count": 100,
                     "locales": {
                         "en_US": {
+                            "total_count": 100,
                             "translated_count": 100,
                             "success": true,
-                            "errors": []
+                            "errors": [],
+                            "last_updated": "2025-01-01 12:00:00"
                         },
                         "ko_KR": {
                             "translated_count": 90,
@@ -40,7 +50,6 @@ Expected JSON structure:
                         }
                     }
                 },
-                "last_updated": "2025-01-01 12:00:00"   
             }
         }
     }
@@ -58,6 +67,18 @@ class TestResult:
             self.load_from_json(json_path)
         else:
             self.result = {"projects": {}}
+    def add_project(self, project_name: str) -> None:
+        pass 
+    
+    def add_category(self, project_name: str, category_name: str) -> None:
+        pass 
+    
+    def add_metadata(self, project_name: str, category_name: str, total_components: int, total_locales: int, locales: list) -> None:
+        pass 
+    
+    def add_component(self, project_name: str, category_name: str, component_name: str) -> None:
+        pass 
+    
     
     def add_locale_result(
         self,
