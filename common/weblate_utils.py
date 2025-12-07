@@ -553,56 +553,9 @@ class WeblateUtils:
                 success=False, errors=errors
             )
             return 
-        print(f"[INFO] Read files:\n \
-            zanata: {zanata_po_path}\n \
-            weblate: {weblate_po_path}")
         
-        # Debug: Check if files exist and show first line
-        import os
-        if not os.path.exists(weblate_po_path):
-            error_msg = f"Weblate PO file does not exist: {weblate_po_path}"
-            print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
-            self.test_result.add_locale_result(
-                project_name, category_name, component_name, locale,
-                total_count=0, translated_count=0, 
-                success=False, errors=errors
-            )
-            return
-        
-        # Show first few lines of Weblate file
-        print(f"[DEBUG] Weblate file size: {os.path.getsize(weblate_po_path)} bytes")
-        with open(weblate_po_path, 'r', encoding='utf-8', errors='ignore') as f:
-            first_lines = [f.readline().strip() for _ in range(3)]
-            print(f"[DEBUG] Weblate first 3 lines:")
-            for i, line in enumerate(first_lines, 1):
-                print(f"[DEBUG]   Line {i}: {line[:100]}")
-        
-        try:
-            zanata_po = polib.pofile(zanata_po_path)
-        except Exception as e:
-            error_msg = f"Failed to parse Zanata PO: {e}"
-            print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
-            self.test_result.add_locale_result(
-                project_name, category_name, component_name, locale,
-                total_count=0, translated_count=0, 
-                success=False, errors=errors
-            )
-            return
-        
-        try:
-            weblate_po = polib.pofile(weblate_po_path)
-        except Exception as e:
-            error_msg = f"Failed to parse Weblate PO: {e}"
-            print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
-            self.test_result.add_locale_result(
-                project_name, category_name, component_name, locale,
-                total_count=0, translated_count=0, 
-                success=False, errors=errors
-            )
-            return
+        zanata_po = polib.pofile(zanata_po_path)
+        weblate_po = polib.pofile(weblate_po_path)
         
         # In weblate, the obsolete entries are deleted automatically.
         # so we need to filter out the obsolete entries for accurate comparison.

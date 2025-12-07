@@ -20,7 +20,7 @@ function get_pot_path {
     local project_package_name="${PROJECT//-/_}"
     case $component in
         "releasenotes")
-            echo "$base_dir/releasenotes/source/locale/releasenotes.pot"
+            echo "$base_dir/releasenotes/locale/source/releasenotes.pot"
             ;;
         "django")
             echo "$base_dir/$project_package_name/locale/django.pot"
@@ -58,7 +58,7 @@ function get_po_path {
     local project_package_name="${PROJECT//-/_}"
     case $component in
         "releasenotes")
-            echo "$base_dir/releasenotes/source/locale/$locale/LC_MESSAGES/releasenotes.po"
+            echo "$base_dir/releasenotes/locale/source/$locale/LC_MESSAGES/releasenotes.po"
             ;;
         "django")
             if [ "$is_weblate" == "true" ]; then
@@ -170,7 +170,7 @@ function get_po_file_path() {
             ;;
         "releasenotes")
             # For releasenotes, locale_file should be the full path
-            echo "${TARGET_PROJECT_DIR}/translations/releasenotes/source/locale/${locale_name}/LC_MESSAGES/${component}.po"
+            echo "${TARGET_PROJECT_DIR}/translations/releasenotes/locale/source/${locale_name}/LC_MESSAGES/${component}.po"
             ;;
         *)
             echo "${TARGET_PROJECT_DIR}/translations/${project_package_name}/locale/${locale_name}/LC_MESSAGES/${project_package_name}.po"
