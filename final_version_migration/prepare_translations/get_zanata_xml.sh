@@ -1,0 +1,148 @@
+#!/bin/bash
+# Get zanata.xml from project repository
+
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+# This code gets from openstack/openstack-zuul-jobs project.
+WORK_DIR="$HOME/$WORKSPACE_NAME"
+PROJECT_DIR="$WORK_DIR/projects/$PROJECT"
+
+# setup_* functions are referenced from openstack-zuul-jobs project.
+# - openstack-zuul-jobs/roles/prepare-zanata-client/files/common_translation_update.sh
+
+# Setup a project for Zanata. This is used by both Python and Django projects.
+# syntax: setup_project <project> <zanata_version>
+function setup_project {
+    # Exclude all dot-files, particuarly for things such such as .tox
+    # and .venv
+    local exclude='.*/**'
+
+    if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
+        -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
+        -r '**/*.pot' '{path}/{locale_with_underscore}/LC_MESSAGES/{filename}.po' \
+        -e "$exclude" -f $PROJECT_DIR/zanata.xml; then
+        
+        echo "[ERROR] Failed to create zanata.xml for $PROJECT"
+        exit 1
+    fi
+    echo "[INFO] zanata.xml created successfully for $PROJECT"
+}
+
+# Setup project manuals projects (api-site, openstack-manuals,
+# security-guide) for Zanata
+function setup_manuals {
+    # Fill in associative array SPECIAL_BOOKS
+    declare -A SPECIAL_BOOKS
+    source doc-tools-check-languages.conf
+
+    # Grab all of the rules for the documents we care about
+    ZANATA_RULES=
+
+    # List of directories to skip.
+
+    # All manuals have a source/common subdirectory that is a symlink
+    # to doc/common in openstack-manuals. We have to exclude this
+    # source/common directory everywhere, only doc/common gets
+    # translated.
+    EXCLUDE='.*/**,**/source/common/**'
+
+    # Generate pot one by one
+    for FILE in ${DocFolder}/*; do
+        # Skip non-directories
+        if [ ! -d $FILE ]; then
+            continue
+        fi
+        DOCNAME=${FILE#${DocFolder}/}
+        # Ignore directories that will not get translated
+        if [[ "$DOCNAME" =~ ^(www|tools|generated|publish-docs)$ ]]; then
+            continue
+        fi
+        IS_RST=0
+        if [ ${SPECIAL_BOOKS["${DOCNAME}"]+_} ] ; then
+            case "${SPECIAL_BOOKS["${DOCNAME}"]}" in
+                RST)
+                    IS_RST=1
+                    ;;
+                skip)
+                    EXCLUDE="$EXCLUDE,${DocFolder}/${DOCNAME}/**"
+                    continue
+                    ;;
+            esac
+        fi
+        if [ ${IS_RST} -eq 1 ] ; then
+            ZANATA_RULES="$ZANATA_RULES -r ${ZanataDocFolder}/${DOCNAME}/source/locale/${DOCNAME}.pot \
+                ${DocFolder}/${DOCNAME}/source/locale/{locale_with_underscore}/LC_MESSAGES/${DOCNAME}.po"
+        else
+            if [ -f ${DocFolder}/${DOCNAME}/locale/${DOCNAME}.pot ]; then
+                ZANATA_RULES="$ZANATA_RULES -r ${ZanataDocFolder}/${DOCNAME}/locale/${DOCNAME}.pot \
+                    ${DocFolder}/${DOCNAME}/locale/{locale_with_underscore}.po"
+            fi
+        fi
+    done
+
+    # Project setup and updating POT files for release notes.
+    if [[ $PROJECT == "openstack-manuals" ]] && [[ $ZANATA_VERSION == "master" ]]; then
+        ZANATA_RULES="$ZANATA_RULES -r ./releasenotes/source/locale/releasenotes.pot \
+            releasenotes/source/locale/{locale_with_underscore}/LC_MESSAGES/releasenotes.po"
+    fi
+
+    if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
+        -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
+        $ZANATA_RULES -e "$EXCLUDE" \
+        -f $PROJECT_DIR/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $PROJECT"
+        exit 1
+    fi
+    echo "[INFO] zanata.xml created successfully for $PROJECT"
+}
+
+# Setup a training-guides project for Zanata
+function setup_training_guides {
+    if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
+        -p $PROJECT -v $ZANATA_VERSION \
+        --srcdir doc/upstream-training/source/locale \
+        --txdir doc/upstream-training/source/locale \
+        -f $PROJECT_DIR/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $PROJECT"
+        exit 1
+    fi
+    echo "[INFO] zanata.xml created successfully for $PROJECT"
+}
+
+# Setup a i18n project for Zanata
+function setup_i18n {
+    if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
+        -p $PROJECT -v $ZANATA_VERSION \
+        --srcdir doc/source/locale \
+        --txdir doc/source/locale \
+        -f $PROJECT_DIR/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $PROJECT"
+        exit 1
+    fi
+    echo "[INFO] zanata.xml created successfully for $PROJECT"
+}
+
+# Setup a ReactJS project for Zanata
+function setup_reactjs_project {
+    local exclude='node_modules/**'
+
+    if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
+        -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
+        -r '**/*.pot' '{path}/{locale}.po' \
+        -e "$exclude" \
+        -f $PROJECT_DIR/zanata.xml; then
+        echo "[ERROR] Failed to create zanata.xml for $PROJECT"
+        exit 1
+    fi
+    echo "[INFO] zanata.xml created successfully for $PROJECT"
+}
