@@ -15,36 +15,7 @@
 
 # This code gets from openstack/openstack-zuul-jobs project.
 WORK_DIR="$HOME/$WORKSPACE_NAME"
-CLONED_PROJECT_DIR="$WORK_DIR/projects/$PROJECT"
-
-function clone_project() {
-
-    cd $WORK_DIR/projects/$PROJECT
-    if [ ! -d "$WORK_DIR/$PROJECT" ]; then
-        git clone https://opendev.org/openstack/$PROJECT
-        echo "[ERROR] Failed to clone $PROJECT project"
-        # If the cloned project directory is empty, remove and get errors.
-        if [ -z "$(ls -A $CLONED_PROJECT_DIR)" ]; then
-            rm -rf $CLONED_PROJECT_DIR
-            echo "[ERROR] Failed to clone $PROJECT project"
-            return 1
-        else
-            echo "[INFO] $PROJECT: Cloned successfully"
-        fi
-    fi
-
-    # If ZANATA_VERSION is master, we don't need to checkout.
-    if [ "$ZANATA_VERSION" != "master" ]; then
-        if ! git checkout $ZANATA_VERSION; then
-            echo "[ERROR] Failed to checkout $ZANATA_VERSION version"
-            return 1
-        fi
-    fi
-    echo "[INFO] $PROJECT: Checked out $ZANATA_VERSION version"
-    cd - > /dev/null
-
-    return 0
-}
+PROJECT_DIR="$WORK_DIR/projects/$PROJECT"
 
 # setup_* functions are referenced from openstack-zuul-jobs project.
 # - openstack-zuul-jobs/roles/prepare-zanata-client/files/common_translation_update.sh
@@ -59,7 +30,7 @@ function setup_project {
     if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale_with_underscore}/LC_MESSAGES/{filename}.po' \
-        -e "$exclude" -f $CLONED_PROJECT_DIR/zanata.xml; then
+        -e "$exclude" -f $PROJECT_DIR/zanata.xml; then
         
         echo "[ERROR] Failed to create zanata.xml for $PROJECT"
         exit 1
@@ -128,7 +99,7 @@ function setup_manuals {
     if ! python3 $SCRIPTSDIR/prepare_translations/create_zanata_xml.py \
         -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         $ZANATA_RULES -e "$EXCLUDE" \
-        -f $WORK_DIR/projects/$PROJECT/$PROJECT/zanata.xml; then
+        -f $PROJECT_DIR/zanata.xml; then
         echo "[ERROR] Failed to create zanata.xml for $PROJECT"
         exit 1
     fi
@@ -141,7 +112,7 @@ function setup_training_guides {
         -p $PROJECT -v $ZANATA_VERSION \
         --srcdir doc/upstream-training/source/locale \
         --txdir doc/upstream-training/source/locale \
-        -f $CLONED_PROJECT_DIR/zanata.xml; then
+        -f $PROJECT_DIR/zanata.xml; then
         echo "[ERROR] Failed to create zanata.xml for $PROJECT"
         exit 1
     fi
@@ -154,7 +125,7 @@ function setup_i18n {
         -p $PROJECT -v $ZANATA_VERSION \
         --srcdir doc/source/locale \
         --txdir doc/source/locale \
-        -f $CLONED_PROJECT_DIR/zanata.xml; then
+        -f $PROJECT_DIR/zanata.xml; then
         echo "[ERROR] Failed to create zanata.xml for $PROJECT"
         exit 1
     fi
@@ -169,7 +140,7 @@ function setup_reactjs_project {
         -p $PROJECT -v $ZANATA_VERSION --srcdir . --txdir . \
         -r '**/*.pot' '{path}/{locale}.po' \
         -e "$exclude" \
-        -f $CLONED_PROJECT_DIR/zanata.xml; then
+        -f $PROJECT_DIR/zanata.xml; then
         echo "[ERROR] Failed to create zanata.xml for $PROJECT"
         exit 1
     fi
