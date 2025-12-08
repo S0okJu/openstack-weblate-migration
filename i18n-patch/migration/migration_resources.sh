@@ -50,12 +50,6 @@ if ! setup_env_and_prepare_workspace "$PROJECT"; then
     exit 1
 fi
 
-# echo "[INFO] Clone $PROJECT project"
-# if ! clone_project "$PROJECT" "$ZANATA_VERSION"; then
-#     echo "[ERROR] Failed to clone $PROJECT project"
-#     exit 1
-# fi
-
 # Create Zanata Config XML file(zanata.xml) per project.
 case $PROJECT in
     api-site|security-doc|openstack-manuals)

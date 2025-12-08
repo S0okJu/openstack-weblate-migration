@@ -91,9 +91,10 @@ with the following folder structure:
 
   * <project_name>/: Project-specific workspace
 
-    * <cloned_project_name>/: Cloned project repository
     * pot/: POT files for each component
     * translations/: Exported translations from Zanata
+    * zanata.xml/: Zanata Config XML file. It contains source and
+      translation file paths.
 
 Directory Layout::
 
@@ -103,6 +104,6 @@ Directory Layout::
   ├── .venv/
   └── projects/
       └── <project_name>/
-          ├── <cloned_project_name>/
           ├── pot/
-          └── translations/
+          ├── translations/
+          └── zanata.xml/
