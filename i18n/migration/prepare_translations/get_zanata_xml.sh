@@ -15,7 +15,7 @@
 
 # This code gets from openstack/openstack-zuul-jobs project.
 WORK_DIR="$HOME/$WORKSPACE_NAME"
-CLONED_PROJECT_DIR="$WORK_DIR/projects/$PROJECT/$PROJECT"
+CLONED_PROJECT_DIR="$WORK_DIR/projects/$PROJECT"
 
 function clone_project() {
 
