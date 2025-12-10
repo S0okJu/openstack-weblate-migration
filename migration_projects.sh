@@ -21,16 +21,14 @@ if [ ! -f "$VERSION_FILE" ]; then
     exit 1
 fi
 
-# migration.sh 경로 설정 (틸드 확장)
 MIGRATION_SCRIPT="$(dirname "$0")/migration_resources.sh"
 
-# migration.sh 존재 여부 확인
 if [ ! -f "$MIGRATION_SCRIPT" ]; then
     echo "Error: migration_resources.sh file does not exist in '$MIGRATION_SCRIPT'."
     exit 1
 fi
 
-# migration.sh 실행 권한 확인
+# Check the execution permission of the script
 if [ ! -x "$MIGRATION_SCRIPT" ]; then
     echo "Warning: migration_resources.sh does not have execution permission. Granting execution permission."
     chmod +x "$MIGRATION_SCRIPT"
@@ -56,6 +54,9 @@ while IFS= read -r project || [ -n "$project" ]; do
     mkdir -p logs/$project
     project=$(echo "$project" | xargs)
     
+    # Generate timestamp for error log filename
+    TIMESTAMP=$(date +%H%M%S)
+    
     echo ""
     echo "=== Project: $project ==="
     
@@ -73,8 +74,8 @@ while IFS= read -r project || [ -n "$project" ]; do
         echo "[$total_count] 처리 중: '$project' (버전: $version)"
         
         # path for log files
-        LOG_FILE="logs/$project/migration_project.log"
-        ERROR_LOG="logs/$project/error.log"
+        LOG_FILE="logs/$project/project.${TIMESTAMP}.log"
+        ERROR_LOG="logs/$project/error.${TIMESTAMP}.log"
         
         # run migration.sh and save the log to the log file
         

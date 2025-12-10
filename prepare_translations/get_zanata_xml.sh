@@ -21,7 +21,7 @@ function clone_project() {
     cd $WORK_DIR/projects/$PROJECT
     if [ ! -d "$WORK_DIR/$PROJECT" ]; then
         git clone https://opendev.org/openstack/$PROJECT
-        echo "[ERROR] Failed to clone $PROJECT project"
+
         # If the cloned project directory is empty, remove and get errors.
         if [ -z "$(ls -A $CLONED_PROJECT_DIR)" ]; then
             rm -rf $CLONED_PROJECT_DIR
@@ -33,13 +33,13 @@ function clone_project() {
     fi
 
     # If ZANATA_VERSION is master, we don't need to checkout.
-    if [ "$ZANATA_VERSION" != "master" ]; then
-        if ! git checkout $ZANATA_VERSION; then
-            echo "[ERROR] Failed to checkout $ZANATA_VERSION version"
+    if [ "$BRANCH_NAME" != "master" ]; then
+        if ! git checkout $BRANCH_NAME; then
+            echo "[ERROR] Failed to checkout $BRANCH_NAME version"
             return 1
         fi
     fi
-    echo "[INFO] $PROJECT: Checked out $ZANATA_VERSION version"
+    echo "[INFO] $PROJECT: Checked out $BRANCH_NAME version"
     cd - > /dev/null
 
     return 0
