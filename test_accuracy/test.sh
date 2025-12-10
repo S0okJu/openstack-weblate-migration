@@ -35,7 +35,7 @@ function test_accuracy {
             echo "[INFO] Step 1/2: Check the sentence count..."
             # the directory name did not support ., 
             # so we need to replace . with -
-            local version_dir = ${ZANATA_VERSION//.//-}
+            local version_dir=${ZANATA_VERSION//./-}
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-count \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \

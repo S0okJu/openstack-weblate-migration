@@ -101,7 +101,6 @@ function get_po_path {
         locale=$(sanitize_locale "$locale")
     fi
 
-    local project_package_name=$(get_project_package_name $PROJECT)
     case $component in
         "releasenotes")
             echo "$base_dir/releasenotes/source/locale/$locale/LC_MESSAGES/releasenotes.po"
