@@ -33,13 +33,16 @@ function test_accuracy {
             echo "[INFO] Testing locale: $locale"
             
             echo "[INFO] Step 1/2: Check the sentence count..."
+            # the directory name did not support ., 
+            # so we need to replace . with -
+            version_dir = ${ZANATA_VERSION//.//-}
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-count \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
                 --component $component \
                 --locale $locale \
                 --zanata-po-path $translation_path \
-                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$ZANATA_VERSION true) \
+                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$version_dir true) \
                 --result-json $RESULT_JSON
             then
                 echo "[ERROR] Check the sentence failed: $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
@@ -53,7 +56,7 @@ function test_accuracy {
                 --component $component \
                 --locale $locale \
                 --zanata-po-path $translation_path \
-                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$ZANATA_VERSION true) \
+                --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$version_dir true) \
                 --result-json $RESULT_JSON 
             
         done
