@@ -44,6 +44,7 @@ function get_project_package_name {
             ;;
         "freezer-web-ui")
             project_package_name="freezer_ui"
+            ;;
         *)
             project_package_name="${project//-/_}"
             ;;
