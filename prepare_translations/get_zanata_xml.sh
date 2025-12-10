@@ -34,10 +34,12 @@ function clone_project() {
 
     # If ZANATA_VERSION is master, we don't need to checkout.
     if [ "$BRANCH_NAME" != "master" ]; then
+        cd $CLONED_PROJECT_DIR
         if ! git checkout $BRANCH_NAME; then
             echo "[ERROR] Failed to checkout $BRANCH_NAME version"
             return 1
         fi
+        cd - > /dev/null
     fi
     echo "[INFO] $PROJECT: Checked out $BRANCH_NAME version"
     cd - > /dev/null
