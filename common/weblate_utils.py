@@ -26,9 +26,6 @@ import zipfile
 import polib
 import requests
 
-# Import TestResult for statistics
-from test_result import TestResult
-
 
 def sanitize_locale(locale: str) -> str:
     """Sanitize locale for standardization
@@ -112,9 +109,6 @@ class WeblateUtils:
         self.config: WeblateConfig = config
         # All of the API calls are prefixed with api/
         self.base_url = urljoin(self.config.base_url, 'api/')
-        # Initialize TestResult for statistics
-        json_path = Path(result_json_path) if result_json_path else None
-        self.test_result = TestResult(json_path)
 
     @property
     def _headers(self) -> dict:
@@ -554,48 +548,6 @@ class WeblateUtils:
         :param weblate_po_path: Path to the weblate po file
         :returns: None
         """
-        # errors for test result
-        errors = []
-
-        # Check if files exist before parsing
-        if not os.path.exists(weblate_po_path):
-            error_msg = f"Weblate PO file does not exist: {weblate_po_path}"
-            print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
-            self.test_result.add_locale_result_failed(
-                project_name=project_name,
-                category_name=category_name,
-                component_name=component_name,
-                locale=locale,
-                errors=errors
-            )
-            return None
-
-        # Check file size and first few lines
-        file_size = os.path.getsize(weblate_po_path)
-        if file_size == 0:
-            error_msg = f"Weblate PO file is empty: {weblate_po_path}"
-            print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
-            self.test_result.add_locale_result_failed(
-                project_name=project_name,
-                category_name=category_name,
-                component_name=component_name,
-                locale=locale,
-                errors=errors
-            )
-            return None
-
-        # Read first few lines to debug
-        try:
-            with open(weblate_po_path, 'r', encoding='utf-8') as f:
-                first_lines = [f.readline() for _ in range(5)]
-            print(f"[DEBUG] Weblate PO file: {weblate_po_path}")
-            print(f"[DEBUG] File size: {file_size} bytes")
-            print(f"[DEBUG] First line: {first_lines[0].strip()[:100]}")
-        except Exception as e:
-            print(f"[WARN] Could not read file for debugging: {e}")
-
         zanata_po = polib.pofile(
             zanata_po_path, encoding='utf-8')
         weblate_po = polib.pofile(
@@ -613,15 +565,6 @@ class WeblateUtils:
                 f"{len(weblate_active)}(weblate)"
             )
             print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
-
-            self.test_result.add_locale_result_failed(
-                project_name=project_name,
-                category_name=category_name,
-                component_name=component_name,
-                locale=locale,
-                errors=error_msg
-            )
             return None
 
         total_count = len(zanata_active)
@@ -637,20 +580,7 @@ class WeblateUtils:
                 f"{len(weblate_active)}(weblate)"
             )
             print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
-
-            self.test_result.add_locale_result_failed(
-                project_name=project_name,
-                category_name=category_name,
-                component_name=component_name,
-                locale=locale,
-                errors=error_msg
-            )
             return None
-
-        self.test_result.add_total_count(
-            project_name, category_name,
-            component_name, total_count)
 
         if zanata_translated != weblate_translated:
             error_msg = (
@@ -660,32 +590,12 @@ class WeblateUtils:
             )
             print(f"[ERROR] {error_msg}")
 
-            self.test_result.add_locale_result_failed(
-                project_name=project_name,
-                category_name=category_name,
-                component_name=component_name,
-                locale=locale,
-                errors=error_msg
-            )
             return None
 
         print(
             f"[INFO] ✓ Count matched(translated/total): "
             f"{zanata_translated}/{len(zanata_active)}"
         )
-
-        # Save result to TestResult
-        self.test_result.add_locale_result_success(
-            project_name=project_name,
-            category_name=category_name,
-            component_name=component_name,
-            translated_count=weblate_translated,
-            locale=locale
-        )
-
-        # Immediately save to JSON so next process can read it
-        if self.test_result.json_path:
-            self.test_result.save_to_json()
 
         return None
 
@@ -707,38 +617,6 @@ class WeblateUtils:
         :param zanata_po_path: Path to the zanata po file
         :param weblate_po_path: Path to the weblate po file
         """
-        # errors for test result
-        errors = []
-
-        # Check if Weblate file exists before parsing
-        if not os.path.exists(weblate_po_path):
-            error_msg = f"Weblate PO file does not exist: {weblate_po_path}"
-            print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
-            self.test_result.add_locale_result_failed(
-                project_name=project_name,
-                category_name=category_name,
-                component_name=component_name,
-                locale=locale,
-                errors=errors
-            )
-            return None
-
-        # Check file size
-        file_size = os.path.getsize(weblate_po_path)
-        if file_size == 0:
-            error_msg = f"Weblate PO file is empty: {weblate_po_path}"
-            print(f"[ERROR] {error_msg}")
-            errors.append(error_msg)
-            self.test_result.add_locale_result_failed(
-                project_name=project_name,
-                category_name=category_name,
-                component_name=component_name,
-                locale=locale,
-                errors=errors
-            )
-            return None
-
         zanata_po = polib.pofile(zanata_po_path, encoding='utf-8')
         weblate_po = polib.pofile(weblate_po_path, encoding='utf-8')
 
@@ -759,7 +637,6 @@ class WeblateUtils:
             if msgid not in weblate_dict:
                 error_msg = f"Missing in Weblate: msgid='{msgid}'"
                 print(f"[ERROR] {error_msg}")
-                errors.append(error_msg)
                 missing_count += 1
                 continue
 
@@ -773,7 +650,6 @@ class WeblateUtils:
                     f"- Weblate msgstr: '{weblate_entry.msgstr}'"
                 )
                 print(f"[ERROR] {error_msg}")
-                errors.append(error_msg)
                 mismatch_count += 1
 
         # Check for entries in Weblate but not in Zanata
@@ -794,57 +670,6 @@ class WeblateUtils:
             for msgid in extra_in_weblate[:5]:
                 error_msg = f"Extra msgid on weblate: '{msgid[:50]}'"
                 print(f"[ERROR] {error_msg}")
-                errors.append(error_msg)
-
-        # Update existing locale result with detail statistics
-        if project_name not in self.test_result.projects:
-            print(
-                f"[ERROR] Project '{project_name}' not found in "
-                f"test results, cannot update detail"
-            )
-            return
-
-        if category_name not in self.test_result.projects[project_name]:
-            print(
-                f"[ERROR] Category '{category_name}' not found in "
-                f"test results, cannot update detail"
-            )
-            return
-
-        category = self.test_result.projects[project_name][category_name]
-        if component_name not in category:
-            print(
-                f"[ERROR] Component '{component_name}' not found in "
-                f"test results, cannot update detail"
-            )
-            return
-
-        component = category[component_name]
-        if locale not in component.get("locales", {}):
-            print(
-                f"[ERROR] Locale '{locale}' not found in "
-                f"test results, cannot update detail"
-            )
-            return
-
-        # Update existing entry with detail counts
-        component["locales"][locale].update({
-            "mismatched_count": mismatch_count,
-            "weblate_missing_count": missing_count,
-            "weblate_extra_count": weblate_extra_count
-        })
-
-        self.test_result.add_locale_result_failed(
-            project_name=project_name,
-            category_name=category_name,
-            component_name=component_name,
-            locale=locale,
-            errors=errors
-        )
-
-        # Save to JSON after updating
-        if self.test_result.json_path:
-            self.test_result.save_to_json()
 
         if (mismatch_count == 0 and missing_count == 0 and
                 weblate_extra_count == 0):

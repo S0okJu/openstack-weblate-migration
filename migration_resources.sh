@@ -23,7 +23,6 @@ ZANATA_VERSION=${BRANCH_NAME//\//-}
 
 # List the components to be handled
 COMPONENTS=()
-LOG_DIR=$HOME/$WORKSPACE_NAME/projects/$PROJECT/log
 
 SCRIPTSDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source $SCRIPTSDIR/setup_env/setup.sh
@@ -116,15 +115,12 @@ echo "[INFO] Create Weblate components"
 create_weblate_components
 
 echo "[INFO] Start Accuracy Test"
-if [ ! -d "$LOG_DIR" ]; then
-    mkdir -p $LOG_DIR
-fi
-# create log file if not exists
-if [ ! -f $LOG_DIR/${PROJECT}_test.log ]; then
-    touch $LOG_DIR/${PROJECT}_test.log
-fi
-test_accuracy 2>&1 | tee -a $LOG_DIR/${PROJECT}_test.log
+test_accuracy
 
 # Clean
-# echo "[INFO] Clean up workspace directory"
-# rm -rf $HOME/$WORKSPACE_NAME/projects
+echo "[INFO] Clean up workspace directory"
+# Not remove the project repository for reuse.
+# TODO: Create code for cleanup all projects.
+rm -rf $HOME/$WORKSPACE_NAME/projects/pot
+rm -rf $HOME/$WORKSPACE_NAME/projects/translations
+exit 0
