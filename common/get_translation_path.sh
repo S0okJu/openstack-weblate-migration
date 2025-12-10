@@ -37,17 +37,18 @@ function get_project_package_name {
     local project_package_name=""
     
     case $project in
-        *-dashboard)
+        "designate-dashboard")
             # Remove all dashes
             # ex. designate-dashboard -> designatedashboard
-            project_package_name="${project//-/}"
+            project_package_name="designatedashboard"
             ;;
         "freezer-web-ui")
+            # Remove all dashes
+            # ex. freezer-web-ui -> freezer_ui
             project_package_name="freezer_ui"
             ;;
         *)
             project_package_name="${project//-/_}"
-            ;;
     esac
     
     echo "$project_package_name"
