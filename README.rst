@@ -40,6 +40,7 @@ How to use
 1. Clone the repository
 2. Run the migration script:
 
+* single project migration:
 .. code-block:: bash
 
    ./migration_resources.sh <project_name> <version> <workspace_name>
@@ -51,6 +52,45 @@ Arguments:
   e.g. stable-2025.1
 * workspace_name: The folder name for the migration workspace.
 It will be installed in the home directory. The default is "workspace".
+
+* project group migration:
+.. code-block:: bash
+
+   ./migration_projects.sh <project_list.txt> <version_list.txt>
+
+Arguments:
+
+* project_list.txt: The text file containing the list of projects to migrate. 
+Each line is a project name.
+
+example:
+.. code-block:: text
+  designate-dashboard
+  freezer-web-ui
+
+* version_list.txt: The text file containing the list of versions to migrate. 
+Each line is a version name.
+The version name should be the same as the branch name in the project repository.
+
+example:
+.. code-block:: text
+  master
+  stable/2025.2
+
+Logs
+----
+The log folder(/log) is created in the current repository directory.
+
+* project.{timestamp}.log: The log file for the project migration.
+* error.{timestamp}.log: The error log file for the project migration.
+
+The timestamp is the current time of migration start. The format is HHMMSS.
+.. code-block:: text
+
+  ├── log/
+  │   └── <project_name>/
+  │       └── project.{timestamp}.log
+  │       └── error.{timestamp}.log
 
 Folder and File Structure
 --------------
