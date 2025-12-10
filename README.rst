@@ -106,6 +106,16 @@ These scripts also create a workspace folder for migration tasks.
 They include various modules to perform actual tasks for resource
 migration step by step.
 
+Log format is:
+.. code-block:: text
+
+// version | message
+stable/2025.2 | [INFO] Testing locale: mai
+stable/2025.2 | [INFO] Step 1/2: Check the sentence count...
+stable/2025.2 | [INFO] ✓ Count matched(translated/total): 73/177
+stable/2025.2 | [INFO] Step 2/2: Check the sentence detail...
+stable/2025.2 | [INFO] ✓ Sentence detail matched: 177 entries
+
 .. note::
 
   The current tool mainly focuses on translation resource migration,
