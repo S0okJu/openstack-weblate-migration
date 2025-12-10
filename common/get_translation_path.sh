@@ -37,6 +37,13 @@ function get_pot_path {
     local base_dir=${2:-$HOME/$WORKSPACE_NAME/projects/$PROJECT/pot}
     local module_name=""
     local project_package_name="${PROJECT//-/_}"
+
+    # exceptions for the module name
+    # designated_dashboard -> designatedashboard
+    if [ "$project_package_name" == "designate_dashboard" ]; then
+        project_package_name="designatedashboard"
+    fi
+    
     case $component in
         "releasenotes")
             echo "$base_dir/releasenotes/source/locale/releasenotes.pot"
