@@ -32,17 +32,31 @@ function sanitize_locale {
     fi
 }
 
+function get_project_package_name {
+    local project=$1
+    local project_package_name=""
+    
+    case $project in
+        *-dashboard)
+            # Remove all dashes
+            # ex. designate-dashboard -> designatedashboard
+            project_package_name="${project//-/}"
+            ;;
+        "freezer-web-ui")
+            project_package_name="freezer_ui"
+        *)
+            project_package_name="${project//-/_}"
+            ;;
+    esac
+    
+    echo "$project_package_name"
+}
+
 function get_pot_path {
     local component=$1
     local base_dir=${2:-$HOME/$WORKSPACE_NAME/projects/$PROJECT/pot}
     local module_name=""
-    local project_package_name="${PROJECT//-/_}"
-
-    # exceptions for the module name
-    # designated_dashboard -> designatedashboard
-    if [ "$project_package_name" == "designate_dashboard" ]; then
-        project_package_name="designatedashboard"
-    fi
+    local project_package_name=$(get_project_package_name $PROJECT)
     
     case $component in
         "releasenotes")
@@ -86,7 +100,7 @@ function get_po_path {
         locale=$(sanitize_locale "$locale")
     fi
 
-    local project_package_name="${PROJECT//-/_}"
+    local project_package_name=$(get_project_package_name $PROJECT)
     case $component in
         "releasenotes")
             echo "$base_dir/releasenotes/source/locale/$locale/LC_MESSAGES/releasenotes.po"
