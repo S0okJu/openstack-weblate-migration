@@ -19,6 +19,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import sys
 import time
 from urllib.parse import urljoin
@@ -107,8 +108,100 @@ class WeblateUtils:
     """Utilities for managing Weblate features"""
     def __init__(self, config: WeblateConfig, result_json_path: str = None):
         self.config: WeblateConfig = config
+        self.result_json_path = result_json_path
         # All of the API calls are prefixed with api/
         self.base_url = urljoin(self.config.base_url, 'api/')
+
+    def _load_results(self) -> dict:
+        """Load existing accuracy-check results from result_json_path."""
+        if not os.path.exists(self.result_json_path):
+            return {}
+        with open(self.result_json_path, 'r', encoding='utf-8') as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                # Back up the unreadable file instead of silently
+                # discarding it, so previously recorded results for
+                # other components/locales aren't lost for good the
+                # next time we write.
+                backup_path = (
+                    f"{self.result_json_path}"
+                    f".corrupt.{int(time.time())}"
+                )
+                shutil.copy2(self.result_json_path, backup_path)
+                print(
+                    f"[WARN] {self.result_json_path} is not valid JSON. "
+                    f"Backed up to {backup_path} and starting with an "
+                    "empty result set"
+                )
+                return {}
+
+    def _save_result(
+        self,
+        project_name: str,
+        category_name: str,
+        component_name: str,
+        locale: str,
+        **fields,
+    ) -> None:
+        """Persist one accuracy-check result to result_json_path.
+
+        check_sentence_count and check_sentence_detail each call this
+        with their own fields; entries are merged by (project,
+        category, component, locale) so one record ends up holding
+        both checks' results. No-op when result_json_path wasn't
+        given, so JSON persistence stays optional for callers that
+        only want console output.
+        """
+        if not self.result_json_path:
+            return
+
+        results = self._load_results()
+        key = f"{project_name}/{category_name}/{component_name}/{locale}"
+        entry = results.get(key, {
+            'project': project_name,
+            'category': category_name,
+            'component': component_name,
+            'locale': locale,
+        })
+        entry.update(fields)
+        entry['checked_at'] = time.strftime('%Y-%m-%dT%H:%M:%S')
+
+        # count_status/detail_status are only set by check_sentence_count
+        # /check_sentence_detail respectively, when that check actually
+        # runs. Deriving "pass" from count_errors/detail_errors being
+        # empty would be wrong here: an entry that has never had one of
+        # the two checks run against it also has an empty error list
+        # for that check, which is not the same as having passed it.
+        #
+        # A 'fail' is checked first and wins over a missing status:
+        # test_accuracy() stops after check-sentence-count fails and
+        # never calls check-sentence-detail for that locale, so
+        # detail_status stays None even though the locale has
+        # conclusively failed - that must report as 'fail', not
+        # 'incomplete'.
+        count_status = entry.get('count_status')
+        detail_status = entry.get('detail_status')
+        if count_status == 'fail' or detail_status == 'fail':
+            entry['status'] = 'fail'
+        elif count_status is None or detail_status is None:
+            entry['status'] = 'incomplete'
+        else:
+            entry['status'] = 'pass'
+        results[key] = entry
+
+        result_path = Path(self.result_json_path)
+        result_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write to a temp file first and rename into place, so a
+        # process killed mid-write leaves the previous result.json
+        # intact instead of a truncated/corrupt one.
+        tmp_path = result_path.with_suffix(
+            result_path.suffix + f'.{os.getpid()}.tmp')
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            json.dump(
+                results, f, indent=2, ensure_ascii=False, sort_keys=True)
+        os.replace(tmp_path, result_path)
 
     @property
     def _headers(self) -> dict:
@@ -553,6 +646,21 @@ class WeblateUtils:
         weblate_po = polib.pofile(
             weblate_po_path, encoding='utf-8')
 
+        # A fresh check_sentence_count run means any detail-check
+        # result recorded by a previous run is no longer known to be
+        # current. Reset those fields explicitly on every branch below
+        # so they don't linger stale if check_sentence_detail never
+        # gets called this run (e.g. because the count check fails
+        # and the caller stops before Step 2/2).
+        detail_reset = {
+            'detail_status': None,
+            'total_entries': None,
+            'mismatch_count': None,
+            'missing_count': None,
+            'extra_count': None,
+            'detail_errors': [],
+        }
+
         # Zanata keeps the obsolete entries.
         # On the other hand, Weblate deletes them automatically.
         # Filter out obsolete entries for accurate comparison.
@@ -565,6 +673,20 @@ class WeblateUtils:
                 f"{len(weblate_active)}(weblate)"
             )
             print(f"[ERROR] {error_msg}")
+            self._save_result(
+                project_name, category_name, component_name, locale,
+                total_zanata=len(zanata_active),
+                total_weblate=len(weblate_active),
+                # Explicitly clear translated_* rather than omitting
+                # them, so a stale value from a previous successful
+                # run of this same (project, category, component,
+                # locale) doesn't linger next to a "fail" status.
+                translated_zanata=None,
+                translated_weblate=None,
+                count_errors=[error_msg],
+                count_status='fail',
+                **detail_reset,
+            )
             return None
 
         total_count = len(zanata_active)
@@ -573,15 +695,6 @@ class WeblateUtils:
         weblate_translated = len(
             [e for e in weblate_active if e.translated()])
 
-        if len(zanata_active) != len(weblate_active):
-            error_msg = (
-                f"Sentence count mismatch: "
-                f"{len(zanata_active)}(zanata) != "
-                f"{len(weblate_active)}(weblate)"
-            )
-            print(f"[ERROR] {error_msg}")
-            return None
-
         if zanata_translated != weblate_translated:
             error_msg = (
                 f"Translated sentence count mismatch: "
@@ -589,12 +702,31 @@ class WeblateUtils:
                 f"{weblate_translated}(weblate)"
             )
             print(f"[ERROR] {error_msg}")
-
+            self._save_result(
+                project_name, category_name, component_name, locale,
+                total_zanata=total_count,
+                total_weblate=total_count,
+                translated_zanata=zanata_translated,
+                translated_weblate=weblate_translated,
+                count_errors=[error_msg],
+                count_status='fail',
+                **detail_reset,
+            )
             return None
 
         print(
             f"[INFO] ✓ Count matched(translated/total): "
             f"{zanata_translated}/{len(zanata_active)}"
+        )
+        self._save_result(
+            project_name, category_name, component_name, locale,
+            total_zanata=total_count,
+            total_weblate=total_count,
+            translated_zanata=zanata_translated,
+            translated_weblate=weblate_translated,
+            count_errors=[],
+            count_status='pass',
+            **detail_reset,
         )
 
         return None
@@ -629,6 +761,7 @@ class WeblateUtils:
 
         mismatch_count = 0
         missing_count = 0
+        errors = []
 
         for zanata_entry in zanata_entries:
             msgid = zanata_entry.msgid
@@ -637,6 +770,7 @@ class WeblateUtils:
             if msgid not in weblate_dict:
                 error_msg = f"Missing in Weblate: msgid='{msgid}'"
                 print(f"[ERROR] {error_msg}")
+                errors.append(error_msg)
                 missing_count += 1
                 continue
 
@@ -650,6 +784,7 @@ class WeblateUtils:
                     f"- Weblate msgstr: '{weblate_entry.msgstr}'"
                 )
                 print(f"[ERROR] {error_msg}")
+                errors.append(error_msg)
                 mismatch_count += 1
 
         # Check for entries in Weblate but not in Zanata
@@ -670,9 +805,13 @@ class WeblateUtils:
             for msgid in extra_in_weblate[:5]:
                 error_msg = f"Extra msgid on weblate: '{msgid[:50]}'"
                 print(f"[ERROR] {error_msg}")
+                errors.append(error_msg)
 
-        if (mismatch_count == 0 and missing_count == 0 and
-                weblate_extra_count == 0):
+        detail_ok = (
+            mismatch_count == 0 and missing_count == 0 and
+            weblate_extra_count == 0
+        )
+        if detail_ok:
             print(
                 f"[INFO] ✓ Sentence detail matched: "
                 f"{len(zanata_entries)} entries"
@@ -688,6 +827,16 @@ class WeblateUtils:
                 print(f"[ERROR]   - Missing in Weblate: {missing_count}")
             if weblate_extra_count > 0:
                 print(f"[ERROR]   - Extra in Weblate: {weblate_extra_count}")
+
+        self._save_result(
+            project_name, category_name, component_name, locale,
+            total_entries=len(zanata_entries),
+            mismatch_count=mismatch_count,
+            missing_count=missing_count,
+            extra_count=weblate_extra_count,
+            detail_errors=errors,
+            detail_status='pass' if detail_ok else 'fail',
+        )
 
         return None
 
