@@ -55,6 +55,22 @@
 - 새 goal이 생기면 새 폴더를 만들고, 다른 goal의 `plan.md`/`goal.md`
   상단에 서로를 가리키는 링크를 추가한다 (기존 3개 goal 문서 참고).
 
+### 완료된 goal 보관 (archive)
+
+`goal.md`의 모든 Phase가 완료 상태가 되면, 그 goal 폴더 전체를
+`~/claude-docs/weblate-migration/archive/<goal-slug>/`로 옮긴다.
+사이드 goal의 `plan.md`/`goal.md`에 그 goal을 가리키는 링크가 있다면
+"완료, archive로 이동됨"이라고만 표시해 둔다(링크는 사람이 파일
+탐색기/IDE로 여전히 열어볼 수 있지만, 아래 이유로 Claude는 다시
+읽지 않는다).
+
+**`archive/` 아래 파일은 Read/Glob 도구로 다시 읽지 않는다** —
+`.claude/settings.local.json`의 permission deny 규칙으로 차단되어
+있다(토큰 효율을 위해 완료된 goal을 컨텍스트에 다시 끌어오지 않기
+위함). 즉 archive로 옮기기 전에 그 goal에서 남길 필요가 있는 요약은
+다른 goal의 문서나 커밋 메시지 등 계속 읽히는 곳에 미리 옮겨 적어야
+한다 — archive로 이동한 뒤에는 그 내용을 다시 참조할 수 없다.
+
 ## 작업 절차 (Phase 하나당)
 
 1. **브랜치**: `stats`에서 분기한 `phase-N-<slug>` 브랜치에서 작업한다.
@@ -94,6 +110,9 @@
    `gh pr create --base stats --head phase-N-<slug>`로 PR을 올린다.
    PR 본문에 요약, 테스트 내역(체크리스트), 결과 문서 경로, (있다면)
    범위 밖 이슈를 적는다.
+8. **완료 확인**: 이 Phase를 반영한 뒤 `goal.md`의 모든 Phase가
+   완료 상태라면, "완료된 goal 보관(archive)" 절차대로 그 goal
+   폴더를 archive로 옮긴다.
 
 ## 자동 머지 권한
 
@@ -122,3 +141,10 @@
   샌드박스에는 프로젝트 venv가 없다. 대신
   `~/workspace/.venv`(과거 다른 프로젝트 실행 중 생성됨)에 `polib`,
   `requests`, `flake8`이 이미 설치되어 있어 이걸로 대체 검증한다.
+- `.claude/settings.local.json`(git에는 안 올라감, `.gitignore`에
+  등록됨)에 `~/claude-docs/weblate-migration/archive/**`를 Read/Glob
+  하지 못하게 막는 permission deny 규칙이 있다. **주의**: 세션이
+  시작된 뒤에 이 파일이 새로 생겼다면, 그 세션의 설정 watcher가
+  `.claude/`를 감시하고 있지 않아 규칙이 바로 적용되지 않을 수 있다
+  (직접 확인함 — 파일 생성 직후 Read가 차단되지 않았음). 이 경우
+  `/hooks`를 한 번 열거나 세션을 재시작해야 반영된다.

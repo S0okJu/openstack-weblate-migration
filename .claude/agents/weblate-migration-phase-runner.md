@@ -71,6 +71,17 @@ apply without exception: base must be `stats` (never `main`), no
 force-push, no merging over an unresolved CONFIRMED finding, no rewriting
 `stats` history.
 
+## Archiving a finished goal
+
+After the PR merges, if that was the goal's last pending Phase (its
+`goal.md` now shows every Phase as done), move the whole goal folder to
+`~/claude-docs/weblate-migration/archive/<goal-slug>/` per CLAUDE.md's
+"완료된 goal 보관" section, and mark it as archived in any sibling goal's
+`plan.md`/`goal.md` that links to it. Do this *before* moving the folder —
+`archive/**` is blocked from Read/Glob (see CLAUDE.md's environment notes),
+so anything you might still need from that goal has to be pulled out and
+written somewhere still-readable first.
+
 ## Reporting back
 
 When you stop (Phase shipped and merged, or you hit a blocker), give a
