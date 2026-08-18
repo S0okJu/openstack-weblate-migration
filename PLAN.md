@@ -73,6 +73,41 @@ EOF에 도달하면 특별한 사정이 없는 한 exit 0으로 끝나므로, `$
 잘못 찍히고 있었다면, 지금까지의 마이그레이션 이력 자체를 재검증해야
 할 수도 있다.
 
+### 4. 정합성 체크 실패가 실제로는 종료 코드로 전파되지 않는다
+
+Phase 2(`common/weblate_utils.py`) 작업 중 리뷰에서 발견했다.
+`check_sentence_count`/`check_sentence_detail`은 불일치를 찾아도
+`print(f"[ERROR] ...")`만 하고 `return None`으로 끝난다. `sys.exit(1)`도,
+예외 발생도 없다. 그 결과 이 CLI를 호출한 Python 프로세스는 정합성
+검사가 실패했더라도 **항상 exit code 0**으로 종료된다.
+
+이 때문에 `test_accuracy/test.sh`의 다음 가드는 실제로는 절대
+발동하지 않는다:
+
+```bash
+if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-count \
+    ...
+then
+    echo "[ERROR] Check the sentence failed: ..."
+    exit 1
+fi
+```
+
+`check-sentence-count`가 정합성 불일치를 찾아도 프로세스 자체는
+exit 0으로 끝나므로 `if !`가 참이 되는 일이 없고, `test_accuracy()`는
+실패를 무시한 채 다음 컴포넌트/로케일로 계속 진행하다 결국 정상
+종료한다.
+
+**왜 중요한가**: 이는 Phase 1에서 고친 문제와는 다른 지점의 버그다.
+Phase 1은 "`migration_resources.sh`의 실제 종료 코드를
+`migration_projects.sh`가 제대로 읽는가"를 고쳤지만, 이 문제는 그보다
+안쪽, "`migration_resources.sh` 자신이 정합성 실패를 종료 코드에
+반영하는가"의 문제다. 즉 Phase 1이 고쳐졌어도, 모든 로케일의 정합성
+체크가 실패한 채로 `migration_resources.sh`가 여전히 `exit 0`으로
+끝나 배치 로그에 "Success"로 잘못 기록될 수 있다. Phase 1·2가 만든
+"신뢰 가능한 성공/실패 판정"이라는 전제 자체를 무너뜨리는 구멍이므로,
+Phase 3(집계)·Phase 4(가독성)보다 먼저 막아야 한다.
+
 ## 계획
 
 ### Phase 1 — 신뢰 가능한 성공/실패 판정 (선행 조건)
@@ -96,24 +131,41 @@ EOF에 도달하면 특별한 사정이 없는 한 exit 0으로 끝나므로, `$
   데이터로 남지 않으면 "현황 파악"이라는 목적을 달성할 수 없다. 죽어있는
   인자를 실제로 연결하는 것이므로 리스크가 낮고 이득이 큰 변경이다.
 
-### Phase 3 — 배치 결과 집계 리포트
+### Phase 3 — 정합성 체크 실패를 실제 종료 코드로 전파
+
+- `check_sentence_count`/`check_sentence_detail`이 불일치를 발견하면
+  `print()` 후 `return None`으로 끝나는 대신, 실패 여부를 반환하도록
+  수정(예: `bool` 반환, 또는 실패 시 예외).
+- `main()`이 이 반환값을 보고 실패 시 `sys.exit(1)`하도록 수정해,
+  `check-sentence-count`/`check-sentence-detail` CLI 호출이 실제로
+  0이 아닌 종료 코드를 낼 수 있게 한다.
+- `test_accuracy/test.sh`의 기존 `if ! python3 ... check-sentence-count
+  ...; then exit 1; fi` 가드가 실제로 발동하는지 재검증.
+- **근거**: 문제 진단 4번. Phase 1이 고친 `migration_projects.sh`의
+  판정 문제와는 다른 지점(그보다 안쪽, `migration_resources.sh` 자신이
+  실패를 종료 코드에 반영하는지)이라 별도로 고쳐야 한다. 이게 고쳐지지
+  않으면 Phase 1·2로 마련한 "신뢰 가능한 성공/실패 판정"이 정합성
+  체크 실패 앞에서는 여전히 무의미하므로, 집계·가독성 개선보다 먼저
+  처리한다.
+
+### Phase 4 — 배치 결과 집계 리포트
 
 - 여러 project/version 실행에서 생성된 `result.json`들과 (수정된)
   성공/실패 판정을 모아, project × version × component × locale
   단위 상태 표(혹은 CSV)를 출력하는 집계 스크립트 추가.
 - 실패 원인을 단계별로 구분해서 보여줄 것: clone 실패 / POT 생성 실패 /
   Weblate 컴포넌트 생성 실패 / 정합성 불일치.
-- **근거**: Phase 1·2로 신뢰 가능한 원본 데이터가 만들어진 뒤에야
-  집계가 의미를 가지므로 마지막 단계로 둔다. 실패 단계 구분은 "정합성
+- **근거**: Phase 1·2·3로 신뢰 가능한 원본 데이터가 만들어진 뒤에야
+  집계가 의미를 가지므로 그 다음 단계로 둔다. 실패 단계 구분은 "정합성
   문제"와 "인프라/API 문제"를 구분해 조치 우선순위를 정할 수 있게 한다.
 
-### Phase 4 — 실행 과정 가독성 개선
+### Phase 5 — 실행 과정 가독성 개선
 
 마이그레이션 결과는 결국 사람이 눈으로 검증해야 하므로, 실행 중/종료 후
 모두 "지금 무슨 일이 벌어지고 있는지"를 최소한의 노력으로 파악할 수
-있어야 한다. Phase 1~3로 데이터(정확한 성공/실패 판정, 구조화된
-result.json, 집계 스크립트)가 준비된 뒤, 그 위에 아래 4가지 표현
-개선을 적용한다.
+있어야 한다. Phase 1~4로 데이터(정확한 성공/실패 판정, 구조화된
+result.json, 종료 코드 전파, 집계 스크립트)가 준비된 뒤, 그 위에 아래
+4가지 표현 개선을 적용한다.
 
 1. **일관된 스테이지 구분**
    이미 존재하는 `migration/pretty-printer.sh`의 `stage()`/`endstage()`를
@@ -150,7 +202,7 @@ result.json, 집계 스크립트)가 준비된 뒤, 그 위에 아래 4가지 �
    `version | message` 포맷을 그대로 유지할 수 있다.
 
 4. **배치 종료 후 사람이 읽는 요약 (콘솔 표 + report.md)**
-   Phase 3에서 만든 집계 스크립트의 출력을, 배치 종료 시점에
+   Phase 4에서 만든 집계 스크립트의 출력을, 배치 종료 시점에
    (a) 콘솔에 project × version × component × locale 상태 표로
    출력하고, (b) 동일한 내용을 `report.md`로도 저장.
    **근거**: 지금은 결과를 확인하려면 `logs/<project>/` 아래 모든
@@ -160,7 +212,7 @@ result.json, 집계 스크립트)가 준비된 뒤, 그 위에 아래 4가지 �
    두 출력 모두 Phase 2의 result.json을 원본으로 삼으므로 서로
    불일치할 일이 없다.
 
-### (선택) Phase 5 — 재개(resume) 지원
+### (선택) Phase 6 — 재개(resume) 지원
 
 - 이미 성공으로 확정된 project × version은 재실행 시 스킵할 수 있도록
   체크포인트 파일 도입.
