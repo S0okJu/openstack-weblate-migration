@@ -78,18 +78,28 @@ while IFS= read -r project || [ -n "$project" ]; do
         ERROR_LOG="logs/$project/error.${TIMESTAMP}.log"
         
         # run migration.sh and save the log to the log file
-        
-        if "$MIGRATION_SCRIPT" "$project" "$version" 2>&1 | while IFS= read -r line; do
+        #
+        # NOTE: We deliberately do not wrap this pipeline in an
+        # `if ... ; then` check. The exit status of a pipeline is the
+        # exit status of its *last* command (the `while` loop here),
+        # which almost always exits 0 regardless of whether
+        # MIGRATION_SCRIPT failed. PIPESTATUS[0] captures the actual
+        # exit code of MIGRATION_SCRIPT, and must be read immediately
+        # after the pipeline, before any other command runs.
+        "$MIGRATION_SCRIPT" "$project" "$version" 2>&1 | while IFS= read -r line; do
             # save the version to the log file
             echo "$version | $line" | tee -a "$LOG_FILE"
             # save the error line to the error log file
             if [[ "$line" == \[ERROR\]* ]]; then
                 echo "$version | $line" >> "$ERROR_LOG"
             fi
-        done; then
+        done
+        migration_exit_code=${PIPESTATUS[0]}
+
+        if [ "$migration_exit_code" -eq 0 ]; then
             echo "[$total_count] Success: '$project' (version: $version)"
         else
-            echo "[$total_count] Failed: '$project' (version: $version) (exit code: $?)"
+            echo "[$total_count] Failed: '$project' (version: $version) (exit code: $migration_exit_code)"
         fi
         sleep 15
         
