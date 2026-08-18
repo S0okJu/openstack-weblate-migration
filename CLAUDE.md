@@ -8,17 +8,42 @@
 
 ## 문서 구조
 
+`~/claude-docs`는 저장소 밖, 로컬에만 존재하는 디렉터리다 (git으로
+버전 관리되지 않고, 원격에 올라가지 않는다). 이 저장소를 위한 문서는
+`~/claude-docs/weblate-migration/` 아래에 있다.
+
+이 프로젝트에는 goal이 여러 개 있을 수 있다. **goal마다 별도
+폴더**로 관리한다 — 여러 goal의 문서를 한 폴더에 섞지 않는다:
+
+```
+~/claude-docs/weblate-migration/
+  <goal-slug>/
+    goal.md              # 이 goal의 진행 상태 트래커
+    phase-N-<slug>.md    # Phase 하나의 자세한 실행 기록
+  <다른-goal-slug>/
+    goal.md
+    ...
+```
+
 - **`PLAN.md`** (이 저장소): 무엇을, 왜 고쳐야 하는지에 대한 진단과
   Phase별 계획, 그리고 정합성 판단 기준점에 대한 근거. 이 파일이
-  바뀌면 "왜"가 바뀐 것이다.
-- **`~/claude-docs/weblate-migration/goal.md`** (저장소 밖): Phase별
-  진행 상태 트래커. 각 Phase의 상태(완료/진행중/예정), PR 링크, 결과
-  문서 링크를 표로 관리한다. 새 Phase를 시작하거나 끝낼 때마다 갱신한다.
-- **`~/claude-docs/weblate-migration/phase-N-<slug>.md`** (저장소 밖):
-  Phase 하나의 자세한 실행 기록. 구조는 문제 → 수정 내용 → 검증 →
-  리뷰 → 결과 순서를 따른다 (기존 `phase-1-*.md`, `phase-2-*.md` 참고).
-  **PLAN.md나 goal.md에 실행 세부사항을 직접 적지 않는다** — 반드시
-  별도 파일로 분리한다.
+  바뀌면 "왜"가 바뀐 것이다. **저장소당(goal당이 아니라) 하나만
+  둔다** — goal이 여러 개여도 진단·계획의 근거는 이 저장소를 대상으로
+  한 것이므로 하나로 합쳐서 관리한다. 새 goal이 생기면 PLAN.md에
+  절을 추가하고, 그 절에서 해당 goal 폴더의 `goal.md`로 링크한다.
+- **`<goal-slug>/goal.md`**: 그 goal의 Phase별 진행 상태 트래커. 각
+  Phase의 상태(완료/진행중/예정), PR 링크, 결과 문서 링크를 표로
+  관리한다. 새 Phase를 시작하거나 끝낼 때마다 갱신한다. 현재 활성
+  goal 폴더는 `migration-status-tracking`이다.
+- **`<goal-slug>/phase-N-<slug>.md`**: Phase 하나의 자세한 실행
+  기록. 구조는 문제 → 수정 내용 → 검증 → 리뷰 → 결과 순서를 따른다
+  (`migration-status-tracking/phase-1-*.md`,
+  `migration-status-tracking/phase-2-*.md` 참고). **PLAN.md나
+  goal.md에 실행 세부사항을 직접 적지 않는다** — 반드시 별도 파일로
+  분리한다.
+- 이 구조와 무관하게, 사용자가 goal 폴더 밖에 직접 만든 메모 파일
+  (예: `migration-plan.md`)이 있을 수 있다. 그런 파일은 옮기거나
+  구조에 편입시키지 않고 그대로 둔다.
 
 ## 작업 절차 (Phase 하나당)
 
@@ -50,8 +75,9 @@
 5. **커밋**: 이 Phase와 관련 없는 파일은 절대 커밋하지 않는다.
    `git status`로 스테이징 전에 항상 확인할 것 — 특히 `list.txt`는
    이 작업들과 무관한 로컬 수정이 계속 남아있으니 건드리지 않는다.
-6. **문서화**: `~/claude-docs/weblate-migration/phase-N-<slug>.md`
-   작성 후 `goal.md`의 상태 표를 갱신한다.
+6. **문서화**: 해당 goal 폴더에
+   `~/claude-docs/weblate-migration/<goal-slug>/phase-N-<slug>.md`를
+   작성한 후, 같은 폴더의 `goal.md` 상태 표를 갱신한다.
 7. **PR**: `git push -u origin phase-N-<slug>` 후
    `gh pr create --base stats --head phase-N-<slug>`로 PR을 올린다.
    PR 본문에 요약, 테스트 내역(체크리스트), 결과 문서 경로, (있다면)

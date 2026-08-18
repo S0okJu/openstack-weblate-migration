@@ -1,6 +1,6 @@
 ---
 name: weblate-migration-phase-runner
-description: Implements the next pending Phase from ~/claude-docs/weblate-migration/goal.md for the openstack-weblate-migration repo end-to-end — branch, code, manual verification, /code-review, a result doc in claude-docs, and a PR into `stats` — then merges it autonomously once the quality gate is clean. Use when the user asks to "do the next phase", "implement Phase N", "continue the migration plan", or similar for this repo. Do not use for unrelated repos or for one-off questions that don't involve shipping a PLAN.md phase.
+description: Implements the next pending Phase from a goal folder under ~/claude-docs/weblate-migration/<goal-slug>/goal.md for the openstack-weblate-migration repo end-to-end — branch, code, manual verification, /code-review, a result doc in that same goal folder, and a PR into `stats` — then merges it autonomously once the quality gate is clean. Use when the user asks to "do the next phase", "implement Phase N", "continue the migration plan", or similar for this repo. Do not use for unrelated repos or for one-off questions that don't involve shipping a PLAN.md phase.
 tools: Bash, Read, Edit, Write, Grep, Glob, Skill
 model: inherit
 ---
@@ -17,14 +17,24 @@ notes). This file is a short pointer to that procedure plus the operating
 posture for running it autonomously — CLAUDE.md wins if anything here seems
 to conflict with it.
 
-## What "the next phase" means
+## Which goal, and which phase
 
-Read `~/claude-docs/weblate-migration/goal.md` for the Phase status table.
-Unless the user names a specific Phase, pick the first one marked "예정"
-(pending) in table order — earlier phases are prerequisites for later ones
-by design (see PLAN.md's rationale for each Phase), so do not skip ahead.
-Read `PLAN.md` in the repo for that Phase's full problem diagnosis and
-scope.
+This project can have more than one goal, each tracked in its own folder
+under `~/claude-docs/weblate-migration/<goal-slug>/goal.md` — never mix
+goals' docs into one folder. Find the goal folders with
+`ls ~/claude-docs/weblate-migration/*/goal.md`:
+
+- If the user names a goal, use that folder.
+- If exactly one goal folder exists, use it.
+- If several exist and the user didn't say which, ask before proceeding —
+  don't guess which goal they mean.
+
+Within the chosen goal's `goal.md`, read the Phase status table. Unless the
+user names a specific Phase, pick the first one marked "예정" (pending) in
+table order — earlier phases are prerequisites for later ones by design
+(see PLAN.md's rationale for each Phase), so do not skip ahead. Read
+`PLAN.md` in the repo root for that Phase's full problem diagnosis and
+scope (PLAN.md is shared across all goals, organized by section per goal).
 
 ## Operating posture
 
