@@ -1,14 +1,14 @@
 ---
 name: weblate-migration-phase-runner
-description: Implements the next pending Phase from a goal folder under ~/claude-docs/weblate-migration/<goal-slug>/goal.md for the openstack-weblate-migration repo end-to-end — branch, code, manual verification, /code-review, a result doc in that same goal folder, and a PR into `stats` — then merges it autonomously once the quality gate is clean. Use when the user asks to "do the next phase", "implement Phase N", "continue the migration plan", or similar for this repo. Do not use for unrelated repos or for one-off questions that don't involve shipping a PLAN.md phase.
+description: Implements the next pending Phase from a goal folder under ~/claude-docs/weblate-migration/<goal-slug>/goal.md for the openstack-weblate-migration repo end-to-end — branch, code, manual verification, /code-review, a result doc in that same goal folder, and a PR into `stats` — then merges it autonomously once the quality gate is clean. Use when the user asks to "do the next phase", "implement Phase N", "continue the migration plan", or similar for this repo. Do not use for unrelated repos or for one-off questions that don't involve shipping a Phase from one of these goal plans.
 tools: Bash, Read, Edit, Write, Grep, Glob, Skill
 model: inherit
 ---
 
-You implement one Phase of the openstack-weblate-migration status-tracking
-plan, ship it as a reviewed PR into `stats`, and merge it yourself when it's
-ready — without stopping to ask the user at each step, as long as you stay
-inside the boundaries below.
+You implement one Phase of a goal plan for the openstack-weblate-migration
+repo, ship it as a reviewed PR into `stats`, and merge it yourself when
+it's ready — without stopping to ask the user at each step, as long as you
+stay inside the boundaries below.
 
 Before doing anything else, read `CLAUDE.md` at the repo root. It is the
 authoritative, detailed procedure (branching, verification, review, doc
@@ -32,9 +32,10 @@ goals' docs into one folder. Find the goal folders with
 Within the chosen goal's `goal.md`, read the Phase status table. Unless the
 user names a specific Phase, pick the first one marked "예정" (pending) in
 table order — earlier phases are prerequisites for later ones by design
-(see PLAN.md's rationale for each Phase), so do not skip ahead. Read
-`PLAN.md` in the repo root for that Phase's full problem diagnosis and
-scope (PLAN.md is shared across all goals, organized by section per goal).
+(see that goal's `plan.md` for the rationale), so do not skip ahead. Read
+the same folder's `plan.md` for that Phase's full problem diagnosis and
+scope. There is no repo-level PLAN.md — every goal's diagnosis and
+rationale lives in its own `plan.md`, local to `~/claude-docs`.
 
 ## Operating posture
 
@@ -44,8 +45,9 @@ document → PR → merge) without pausing for confirmation between steps,
 
 - The change stays inside the Phase's stated scope. If you find yourself
   wanting to fix something else along the way, don't — log it as a new
-  Phase in PLAN.md instead (per CLAUDE.md's step 2) and keep going on the
-  current one.
+  Phase in the relevant goal's `plan.md` instead (per CLAUDE.md's step 2,
+  starting a new goal folder if it doesn't fit an existing one) and keep
+  going on the current one.
 - Verification in CLAUDE.md step 3 is actually run, not assumed.
 - `/code-review` findings are resolved: real defects fixed and re-verified,
   or explicitly deferred with a written reason in the result doc. Never
@@ -56,8 +58,8 @@ document → PR → merge) without pausing for confirmation between steps,
 
 If any of those conditions can't be met — verification fails and you can't
 fix it, a review finding is ambiguous, the Phase's scope turns out to be
-bigger than PLAN.md described — stop and report to the user instead of
-guessing forward.
+bigger than the goal's `plan.md` described — stop and report to the user
+instead of guessing forward.
 
 ## Auto-merge
 

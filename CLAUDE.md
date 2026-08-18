@@ -2,15 +2,20 @@
 
 이 저장소에서 작업할 때 따라야 할 규칙. Zanata → Weblate 번역 리소스
 마이그레이션 도구(`migration_resources.sh`, `migration_projects.sh`,
-`test_accuracy/`, `common/weblate_utils.py` 등)에 관한 작업이며, 현재
-진행 중인 목표는 "마이그레이션 현황을 신뢰성 있게, 사람이 검증하기
-쉬운 형태로 파악할 수 있게 만드는 것"이다.
+`test_accuracy/`, `common/weblate_utils.py` 등)에 관한 작업이며,
+"마이그레이션 현황을 신뢰성 있게, 사람이 검증하기 쉬운 형태로 파악할
+수 있게 만드는 것"을 여러 goal로 나눠 진행 중이다 (goal 목록은 아래
+"문서 구조" 참고).
 
 ## 문서 구조
 
 `~/claude-docs`는 저장소 밖, 로컬에만 존재하는 디렉터리다 (git으로
-버전 관리되지 않고, 원격에 올라가지 않는다). 이 저장소를 위한 문서는
-`~/claude-docs/weblate-migration/` 아래에 있다.
+버전 관리되지 않고, 원격에 올라가지 않는다). **이 저장소에는 계획
+문서(PLAN.md 같은)를 두지 않는다** — 진단/계획/근거를 포함한 모든
+작업 문서는 `~/claude-docs/weblate-migration/` 아래에 로컬로만
+존재한다. (트레이드오프: GitHub에서 이 저장소만 보는 사람은 각 PR의
+설명 외에는 "왜"에 접근할 수 없다. 이 프로젝트에서는 사용자가 명시적
+으로 선택한 방식이다.)
 
 이 프로젝트에는 goal이 여러 개 있을 수 있다. **goal마다 별도
 폴더**로 관리한다 — 여러 goal의 문서를 한 폴더에 섞지 않는다:
@@ -18,40 +23,46 @@
 ```
 ~/claude-docs/weblate-migration/
   <goal-slug>/
-    goal.md              # 이 goal의 진행 상태 트래커
-    phase-N-<slug>.md    # Phase 하나의 자세한 실행 기록
+    plan.md               # 이 goal의 문제 진단 + 계획 근거 ("왜")
+    goal.md                # 이 goal의 Phase별 진행 상태 트래커
+    phase-N-<slug>.md      # Phase 하나의 자세한 실행 기록
   <다른-goal-slug>/
+    plan.md
     goal.md
     ...
 ```
 
-- **`PLAN.md`** (이 저장소): 무엇을, 왜 고쳐야 하는지에 대한 진단과
-  Phase별 계획, 그리고 정합성 판단 기준점에 대한 근거. 이 파일이
-  바뀌면 "왜"가 바뀐 것이다. **저장소당(goal당이 아니라) 하나만
-  둔다** — goal이 여러 개여도 진단·계획의 근거는 이 저장소를 대상으로
-  한 것이므로 하나로 합쳐서 관리한다. 새 goal이 생기면 PLAN.md에
-  절을 추가하고, 그 절에서 해당 goal 폴더의 `goal.md`로 링크한다.
-- **`<goal-slug>/goal.md`**: 그 goal의 Phase별 진행 상태 트래커. 각
-  Phase의 상태(완료/진행중/예정), PR 링크, 결과 문서 링크를 표로
-  관리한다. 새 Phase를 시작하거나 끝낼 때마다 갱신한다. 현재 활성
-  goal 폴더는 `migration-status-tracking`이다.
-- **`<goal-slug>/phase-N-<slug>.md`**: Phase 하나의 자세한 실행
-  기록. 구조는 문제 → 수정 내용 → 검증 → 리뷰 → 결과 순서를 따른다
+현재 활성 goal 폴더:
+- `migration-status-tracking`: 마이그레이션 성공/실패 판정을 신뢰
+  가능하게 만드는 것 (Phase 1·2 완료, Phase 3·4 예정).
+- `batch-execution-readability`: 그 데이터를 실행 중/후에 사람이
+  읽기 쉽게 보여주는 것 (전부 예정).
+- `accuracy-check-fidelity`: Zanata↔Weblate 정합성 체크 자체의
+  정밀도를 높이는 것 (전부 예정).
+
+각 goal 폴더 안에서:
+- **`plan.md`**: 그 goal의 무엇을, 왜 고쳐야 하는지에 대한 진단과
+  Phase별 계획 근거. 이 파일이 바뀌면 그 goal의 "왜"가 바뀐 것이다.
+- **`goal.md`**: 그 goal의 Phase별 진행 상태 트래커. 각 Phase의
+  상태(완료/진행중/예정), PR 링크, 결과 문서 링크를 표로 관리한다.
+  새 Phase를 시작하거나 끝낼 때마다 갱신한다.
+- **`phase-N-<slug>.md`**: Phase 하나의 자세한 실행 기록. 구조는
+  문제 → 수정 내용 → 검증 → 리뷰 → 결과 순서를 따른다
   (`migration-status-tracking/phase-1-*.md`,
-  `migration-status-tracking/phase-2-*.md` 참고). **PLAN.md나
-  goal.md에 실행 세부사항을 직접 적지 않는다** — 반드시 별도 파일로
-  분리한다.
-- 이 구조와 무관하게, 사용자가 goal 폴더 밖에 직접 만든 메모 파일
-  (예: `migration-plan.md`)이 있을 수 있다. 그런 파일은 옮기거나
-  구조에 편입시키지 않고 그대로 둔다.
+  `migration-status-tracking/phase-2-*.md` 참고). **`plan.md`나
+  `goal.md`에 실행 세부사항을 직접 적지 않는다** — 반드시 별도
+  파일로 분리한다.
+- 새 goal이 생기면 새 폴더를 만들고, 다른 goal의 `plan.md`/`goal.md`
+  상단에 서로를 가리키는 링크를 추가한다 (기존 3개 goal 문서 참고).
 
 ## 작업 절차 (Phase 하나당)
 
 1. **브랜치**: `stats`에서 분기한 `phase-N-<slug>` 브랜치에서 작업한다.
    PR의 base는 항상 `stats`이며 `main`이 아니다.
 2. **범위**: 해당 Phase가 다루는 문제만 고친다. 작업 중 발견한 별개의
-   문제는 곧바로 고치지 말고 PLAN.md에 새 Phase(문제 진단 + 계획)로
-   추가해두고, 지금 하는 작업은 원래 범위대로 끝낸다.
+   문제는 곧바로 고치지 말고, 그 문제가 속하는 goal의 `plan.md`에 새
+   Phase(문제 진단 + 계획)로 추가해두고 — 기존 goal에 안 맞으면 새
+   goal 폴더를 만들고 — 지금 하는 작업은 원래 범위대로 끝낸다.
 3. **검증**: 구현 후 최소한 아래를 직접 실행해서 확인한다. 이
    저장소에는 자동 테스트가 없으므로 사람이 하듯 수동으로 재현해야
    한다.
@@ -69,9 +80,10 @@
      **조용히 넘어가지 말고** 결과 문서에 "의도적으로 보류한 항목"
      섹션으로 근거와 함께 남긴다.
    - 리뷰 중 이번 Phase와 무관한 별개의 심각한 문제를 발견하면,
-     그 자리에서 고치지 말고 PLAN.md에 새 Phase로 추가하고 결과
-     문서에도 "리뷰 중 발견한 별도의 이슈" 섹션으로 남긴다 (Phase 2
-     작업 중 발견한 exit-code 미전파 문제가 이 패턴의 예시).
+     그 자리에서 고치지 말고 해당 goal의 `plan.md`에 새 Phase로
+     추가하고 결과 문서에도 "리뷰 중 발견한 별도의 이슈" 섹션으로
+     남긴다 (migration-status-tracking Phase 2 작업 중 발견한
+     exit-code 미전파 문제가 이 패턴의 예시).
 5. **커밋**: 이 Phase와 관련 없는 파일은 절대 커밋하지 않는다.
    `git status`로 스테이징 전에 항상 확인할 것 — 특히 `list.txt`는
    이 작업들과 무관한 로컬 수정이 계속 남아있으니 건드리지 않는다.
