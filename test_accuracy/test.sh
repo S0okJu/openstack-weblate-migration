@@ -50,15 +50,19 @@ function test_accuracy {
             fi
 
             echo "[INFO] Step 2/2: Check the sentence detail..."
-            python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-detail \
+            if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-detail \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
                 --component $component \
                 --locale $locale \
                 --zanata-po-path $translation_path \
                 --weblate-po-path $(get_po_path $component $locale $TEST_DIR/$PROJECT/$version_dir true) \
-                --result-json $RESULT_JSON 
-            
+                --result-json $RESULT_JSON
+            then
+                echo "[ERROR] Check the sentence detail failed: $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
+                exit 1
+            fi
+
         done
         echo "[INFO] ✓ Component '$component' completed - tested ${#translation_path_array[@]} locales"
     done

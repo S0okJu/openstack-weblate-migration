@@ -630,7 +630,7 @@ class WeblateUtils:
         locale: str,
         zanata_po_path: str,
         weblate_po_path: str,
-    ) -> None:
+    ) -> bool:
         """Check the sentence count of the translation
 
         :param project_name: Name of the project
@@ -639,7 +639,7 @@ class WeblateUtils:
         :param locale: Name of the locale
         :param zanata_po_path: Path to the zanata po file
         :param weblate_po_path: Path to the weblate po file
-        :returns: None
+        :returns: True if the sentence counts match, False otherwise
         """
         zanata_po = polib.pofile(
             zanata_po_path, encoding='utf-8')
@@ -687,7 +687,7 @@ class WeblateUtils:
                 count_status='fail',
                 **detail_reset,
             )
-            return None
+            return False
 
         total_count = len(zanata_active)
         zanata_translated = len(
@@ -712,7 +712,7 @@ class WeblateUtils:
                 count_status='fail',
                 **detail_reset,
             )
-            return None
+            return False
 
         print(
             f"[INFO] ✓ Count matched(translated/total): "
@@ -729,7 +729,7 @@ class WeblateUtils:
             **detail_reset,
         )
 
-        return None
+        return True
 
     def check_sentence_detail(
         self,
@@ -739,7 +739,7 @@ class WeblateUtils:
         locale: str,
         zanata_po_path: str,
         weblate_po_path: str,
-    ) -> None:
+    ) -> bool:
         """Check detailed translation matching and save to TestResult.
 
         :param project_name: Name of the project
@@ -748,6 +748,7 @@ class WeblateUtils:
         :param locale: Locale code
         :param zanata_po_path: Path to the zanata po file
         :param weblate_po_path: Path to the weblate po file
+        :returns: True if the detailed comparison matched, False otherwise
         """
         zanata_po = polib.pofile(zanata_po_path, encoding='utf-8')
         weblate_po = polib.pofile(weblate_po_path, encoding='utf-8')
@@ -838,7 +839,7 @@ class WeblateUtils:
             detail_status='pass' if detail_ok else 'fail',
         )
 
-        return None
+        return detail_ok
 
 
 def setup_argument_parser():
@@ -981,14 +982,18 @@ def main():
             utils.download_translation_file(
                 args.project, args.po_path)
         elif args.command == 'check-sentence-count':
-            utils.check_sentence_count(
+            passed = utils.check_sentence_count(
                 args.project, args.category, args.component, args.locale,
                 args.zanata_po_path, args.weblate_po_path)
+            if not passed:
+                sys.exit(1)
 
         elif args.command == 'check-sentence-detail':
-            utils.check_sentence_detail(
+            passed = utils.check_sentence_detail(
                 args.project, args.category, args.component, args.locale,
                 args.zanata_po_path, args.weblate_po_path)
+            if not passed:
+                sys.exit(1)
         else:
             parser.print_help()
             sys.exit(1)
