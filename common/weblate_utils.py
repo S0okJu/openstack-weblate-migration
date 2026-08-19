@@ -157,12 +157,13 @@ def reduce_result_events(events) -> dict:
         })
         results[key] = entry
 
-    # existence_status/count_status/detail_status/format_status are
-    # only set by check_translation_existence/check_sentence_count/
+    # existence_status/fuzzy_status/count_status/detail_status/
+    # format_status are only set by check_translation_existence/
+    # check_fuzzy_untranslated/check_sentence_count/
     # check_sentence_detail/check_po_format respectively, when that
     # check actually runs. Deriving "pass" from count_errors/
     # detail_errors being empty would be wrong here: an entry that has
-    # never had one of the four checks run against it also has an
+    # never had one of the five checks run against it also has an
     # empty error list for that check, which is not the same as having
     # passed it.
     #
@@ -174,11 +175,12 @@ def reduce_result_events(events) -> dict:
     # 'incomplete'.
     for entry in results.values():
         existence_status = entry.get('existence_status')
+        fuzzy_status = entry.get('fuzzy_status')
         count_status = entry.get('count_status')
         detail_status = entry.get('detail_status')
         format_status = entry.get('format_status')
-        statuses = (existence_status, count_status, detail_status,
-                    format_status)
+        statuses = (existence_status, fuzzy_status, count_status,
+                    detail_status, format_status)
         if 'fail' in statuses:
             entry['status'] = 'fail'
         elif None in statuses:
@@ -732,10 +734,19 @@ class WeblateUtils:
                 project_name, category_name, component_name, locale,
                 existence_errors=[error_msg],
                 existence_status='fail',
-                # Count/detail cannot run this pass. Reset their
-                # status explicitly so a stale pass/fail left over
-                # from an earlier successful run of this same key
-                # doesn't linger next to today's existence failure.
+                # None of the later checks can run this pass. Reset
+                # every field they'd otherwise set explicitly so a
+                # stale pass/fail left over from an earlier successful
+                # run of this same key doesn't linger next to today's
+                # existence failure.
+                fuzzy_status=None,
+                fuzzy_zanata=None,
+                fuzzy_weblate=None,
+                untranslated_zanata=None,
+                untranslated_weblate=None,
+                fuzzy_increase=None,
+                untranslated_increase=None,
+                fuzzy_errors=[],
                 count_status=None,
                 total_zanata=None,
                 total_weblate=None,
@@ -748,6 +759,8 @@ class WeblateUtils:
                 missing_count=None,
                 extra_count=None,
                 detail_errors=[],
+                format_status=None,
+                format_errors=[],
             )
             return False
 
@@ -760,6 +773,125 @@ class WeblateUtils:
             existence_errors=[],
             existence_status='pass',
         )
+        return True
+
+    def check_fuzzy_untranslated(
+        self,
+        project_name: str,
+        category_name: str,
+        component_name: str,
+        locale: str,
+        zanata_po_path: str,
+        weblate_po_path: str,
+    ) -> bool:
+        """Classify why the translated count changed after migration.
+
+        check_sentence_count fails outright on any translated-count
+        difference between Zanata and Weblate, without saying whether
+        that difference is benign (content preserved, just re-flagged
+        fuzzy for review) or a real loss (content actually emptied
+        out). This runs before check_sentence_count so that
+        classification - not gated by check_sentence_count's own
+        pass/fail - is always recorded to help a human triage a count
+        failure. It does not change check_sentence_count's own
+        equality check, which stays as strict as before.
+
+        polib.POEntry.translated() excludes both obsolete and fuzzy
+        entries, and POFile.untranslated_entries() excludes both
+        translated and fuzzy entries, so among the non-obsolete
+        entries every entry is in exactly one of translated/fuzzy/
+        untranslated - counting fuzzy and untranslated directly is
+        enough to classify the change without needing the total/
+        translated counts check_sentence_count already computes.
+
+        :param project_name: Name of the project
+        :param category_name: Name of the category
+        :param component_name: Name of the component
+        :param locale: Name of the locale
+        :param zanata_po_path: Path to the zanata po file
+        :param weblate_po_path: Path to the weblate po file
+        :returns: True unless the untranslated count increased
+            (a decrease not explained by fuzzy re-marking alone)
+        """
+        zanata_po = polib.pofile(zanata_po_path, encoding='utf-8')
+        weblate_po = polib.pofile(weblate_po_path, encoding='utf-8')
+
+        zanata_fuzzy = len(zanata_po.fuzzy_entries())
+        weblate_fuzzy = len(weblate_po.fuzzy_entries())
+        zanata_untranslated = len(zanata_po.untranslated_entries())
+        weblate_untranslated = len(weblate_po.untranslated_entries())
+
+        fuzzy_increase = weblate_fuzzy - zanata_fuzzy
+        untranslated_increase = weblate_untranslated - zanata_untranslated
+
+        errors = []
+        if untranslated_increase > 0:
+            error_msg = (
+                f"Untranslated count increased by "
+                f"{untranslated_increase} (zanata="
+                f"{zanata_untranslated} -> weblate="
+                f"{weblate_untranslated}) - not explained by fuzzy "
+                f"re-marking alone, possible translation loss"
+            )
+            print(f"[ERROR] {error_msg}")
+            errors.append(error_msg)
+
+        fuzzy_ok = untranslated_increase <= 0
+
+        if fuzzy_increase > 0:
+            print(
+                f"[INFO] Fuzzy count increased by {fuzzy_increase} "
+                f"(zanata={zanata_fuzzy} -> weblate={weblate_fuzzy}) "
+                f"- content preserved, marked fuzzy for review"
+            )
+
+        fuzzy_fields = {
+            'fuzzy_zanata': zanata_fuzzy,
+            'fuzzy_weblate': weblate_fuzzy,
+            'untranslated_zanata': zanata_untranslated,
+            'untranslated_weblate': weblate_untranslated,
+            'fuzzy_increase': fuzzy_increase,
+            'untranslated_increase': untranslated_increase,
+            'fuzzy_errors': errors,
+        }
+
+        if not fuzzy_ok:
+            self._save_result(
+                project_name, category_name, component_name, locale,
+                fuzzy_status='fail',
+                **fuzzy_fields,
+                # Count/detail/format cannot run this pass. Reset
+                # their status explicitly so a stale pass/fail left
+                # over from an earlier successful run of this same
+                # key doesn't linger next to today's fuzzy failure.
+                count_status=None,
+                total_zanata=None,
+                total_weblate=None,
+                translated_zanata=None,
+                translated_weblate=None,
+                count_errors=[],
+                detail_status=None,
+                total_entries=None,
+                mismatch_count=None,
+                missing_count=None,
+                extra_count=None,
+                detail_errors=[],
+                format_status=None,
+                format_errors=[],
+            )
+            return False
+
+        print(
+            "[INFO] ✓ No untranslated increase "
+            f"(zanata={zanata_untranslated}, "
+            f"weblate={weblate_untranslated})"
+        )
+        self._save_result(
+            project_name, category_name, component_name, locale,
+            fuzzy_status='pass',
+            **fuzzy_fields,
+        )
+
         return True
 
     def check_sentence_count(
@@ -799,6 +931,11 @@ class WeblateUtils:
             'missing_count': None,
             'extra_count': None,
             'detail_errors': [],
+            # Format cannot run this pass either - reset it too so a
+            # stale pass/fail from an earlier successful run doesn't
+            # linger next to today's count failure.
+            'format_status': None,
+            'format_errors': [],
         }
 
         # Zanata keeps the obsolete entries.
@@ -1039,6 +1176,16 @@ class WeblateUtils:
             extra_count=weblate_extra_count,
             detail_errors=errors,
             detail_status='pass' if detail_ok else 'fail',
+            # Format cannot run this pass if detail failed - reset it
+            # explicitly so a stale pass/fail from an earlier
+            # successful run doesn't linger next to today's detail
+            # failure. On success this just gets overwritten by
+            # check_po_format's own call right after, so it's a no-op
+            # there.
+            **({} if detail_ok else {
+                'format_status': None,
+                'format_errors': [],
+            }),
         )
 
         return detail_ok
@@ -1200,6 +1347,26 @@ def setup_argument_parser():
     check_translation_existence_parser.add_argument(
         '--result-json', required=False,
         help='Path to result JSON Lines log (append-only)')
+    # Check fuzzy/untranslated command
+    check_fuzzy_untranslated_parser = subparser.add_parser(
+        'check-fuzzy-untranslated',
+        help='Classify a translated-count change as fuzzy re-marking '
+             'or possible translation loss')
+    check_fuzzy_untranslated_parser.add_argument(
+        '--project', required=True, help='Name of the project')
+    check_fuzzy_untranslated_parser.add_argument(
+        '--category', required=True, help='Name of the category')
+    check_fuzzy_untranslated_parser.add_argument(
+        '--component', required=True, help='Name of the component')
+    check_fuzzy_untranslated_parser.add_argument(
+        '--locale', required=True, help='Name of the locale')
+    check_fuzzy_untranslated_parser.add_argument(
+        '--zanata-po-path', required=True, help='Path to the zanata po file')
+    check_fuzzy_untranslated_parser.add_argument(
+        '--weblate-po-path', required=True, help='Path to weblate po')
+    check_fuzzy_untranslated_parser.add_argument(
+        '--result-json', required=False,
+        help='Path to result JSON Lines log (append-only)')
     # Check sentence count command
     check_sentence_count_parser = subparser.add_parser(
         'check-sentence-count', help='Check the sentence count of the translation')
@@ -1295,6 +1462,12 @@ def main():
                 args.project, args.po_path)
         elif args.command == 'check-translation-existence':
             passed = utils.check_translation_existence(
+                args.project, args.category, args.component, args.locale,
+                args.zanata_po_path, args.weblate_po_path)
+            if not passed:
+                sys.exit(1)
+        elif args.command == 'check-fuzzy-untranslated':
+            passed = utils.check_fuzzy_untranslated(
                 args.project, args.category, args.component, args.locale,
                 args.zanata_po_path, args.weblate_po_path)
             if not passed:
