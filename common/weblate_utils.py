@@ -19,7 +19,6 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
 import sys
 import time
 from urllib.parse import urljoin
@@ -92,6 +91,95 @@ def get_version_name(version: str) -> str:
     return version.replace('/', '-')
 
 
+def load_result_events(result_jsonl_path) -> list:
+    """Read a result JSON Lines log written by WeblateUtils._save_result.
+
+    Tolerates a truncated final line (e.g. the writer process was
+    killed mid-write) by skipping it with a warning instead of
+    discarding every event that came before it.
+
+    :param result_jsonl_path: Path to the result JSON Lines file.
+    :returns: list of event dicts, in the order they were appended.
+    """
+    events = []
+    if not os.path.exists(result_jsonl_path):
+        return events
+    with open(result_jsonl_path, encoding='utf-8') as f:
+        for lineno, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                print(
+                    f"[WARN] {result_jsonl_path}:{lineno}: not valid "
+                    "JSON - skipped",
+                    file=sys.stderr,
+                )
+    return events
+
+
+def reduce_result_events(events) -> dict:
+    """Fold raw check-result events into one merged entry per
+    (project, category, component, locale).
+
+    check_sentence_count and check_sentence_detail each append their
+    own event for the same key; later events overwrite the fields
+    they carry (mirroring the in-place dict merge the previous
+    read-modify-write version of _save_result used to do) so the
+    final entry for a key holds the latest value of every field
+    either check has ever written for it.
+
+    :param events: iterable of event dicts, in append order (e.g.
+        from load_result_events).
+    :returns: dict keyed by "project/category/component/locale",
+        each value a merged entry with a derived 'status' field.
+    """
+    results = {}
+    for event in events:
+        key = (
+            f"{event['project']}/{event['category']}/"
+            f"{event['component']}/{event['locale']}"
+        )
+        entry = results.get(key, {
+            'project': event['project'],
+            'category': event['category'],
+            'component': event['component'],
+            'locale': event['locale'],
+        })
+        entry.update({
+            k: v for k, v in event.items()
+            if k not in ('project', 'category', 'component', 'locale')
+        })
+        results[key] = entry
+
+    # count_status/detail_status are only set by check_sentence_count
+    # /check_sentence_detail respectively, when that check actually
+    # runs. Deriving "pass" from count_errors/detail_errors being
+    # empty would be wrong here: an entry that has never had one of
+    # the two checks run against it also has an empty error list for
+    # that check, which is not the same as having passed it.
+    #
+    # A 'fail' is checked first and wins over a missing status:
+    # test_accuracy() stops after check-sentence-count fails and
+    # never calls check-sentence-detail for that locale, so
+    # detail_status stays None even though the locale has
+    # conclusively failed - that must report as 'fail', not
+    # 'incomplete'.
+    for entry in results.values():
+        count_status = entry.get('count_status')
+        detail_status = entry.get('detail_status')
+        if count_status == 'fail' or detail_status == 'fail':
+            entry['status'] = 'fail'
+        elif count_status is None or detail_status is None:
+            entry['status'] = 'incomplete'
+        else:
+            entry['status'] = 'pass'
+
+    return results
+
+
 class WeblateConfig:
     """Object that stores Weblate configuration.
 
@@ -112,30 +200,6 @@ class WeblateUtils:
         # All of the API calls are prefixed with api/
         self.base_url = urljoin(self.config.base_url, 'api/')
 
-    def _load_results(self) -> dict:
-        """Load existing accuracy-check results from result_json_path."""
-        if not os.path.exists(self.result_json_path):
-            return {}
-        with open(self.result_json_path, 'r', encoding='utf-8') as f:
-            try:
-                return json.load(f)
-            except json.JSONDecodeError:
-                # Back up the unreadable file instead of silently
-                # discarding it, so previously recorded results for
-                # other components/locales aren't lost for good the
-                # next time we write.
-                backup_path = (
-                    f"{self.result_json_path}"
-                    f".corrupt.{int(time.time())}"
-                )
-                shutil.copy2(self.result_json_path, backup_path)
-                print(
-                    f"[WARN] {self.result_json_path} is not valid JSON. "
-                    f"Backed up to {backup_path} and starting with an "
-                    "empty result set"
-                )
-                return {}
-
     def _save_result(
         self,
         project_name: str,
@@ -144,64 +208,41 @@ class WeblateUtils:
         locale: str,
         **fields,
     ) -> None:
-        """Persist one accuracy-check result to result_json_path.
+        """Append one accuracy-check event to result_json_path.
 
         check_sentence_count and check_sentence_detail each call this
-        with their own fields; entries are merged by (project,
-        category, component, locale) so one record ends up holding
-        both checks' results. No-op when result_json_path wasn't
-        given, so JSON persistence stays optional for callers that
-        only want console output.
+        with their own fields, once per process. No-op when
+        result_json_path wasn't given, so JSON persistence stays
+        optional for callers that only want console output.
+
+        This deliberately only appends - it does not read the file at
+        all. An earlier version read the full accumulated result set
+        and rewrote it on every call so that same-key events (e.g. a
+        count check and the detail check that follows it) merged into
+        one record; that made total I/O grow with the square of the
+        number of checks in a run (each of N calls re-read and
+        rewrote up to N-1 prior entries). reduce_result_events() now
+        does that merge - including the count_status/detail_status ->
+        status derivation - at read time instead, from the plain
+        event log this writes.
         """
         if not self.result_json_path:
             return
 
-        results = self._load_results()
-        key = f"{project_name}/{category_name}/{component_name}/{locale}"
-        entry = results.get(key, {
+        event = {
             'project': project_name,
             'category': category_name,
             'component': component_name,
             'locale': locale,
-        })
-        entry.update(fields)
-        entry['checked_at'] = time.strftime('%Y-%m-%dT%H:%M:%S')
-
-        # count_status/detail_status are only set by check_sentence_count
-        # /check_sentence_detail respectively, when that check actually
-        # runs. Deriving "pass" from count_errors/detail_errors being
-        # empty would be wrong here: an entry that has never had one of
-        # the two checks run against it also has an empty error list
-        # for that check, which is not the same as having passed it.
-        #
-        # A 'fail' is checked first and wins over a missing status:
-        # test_accuracy() stops after check-sentence-count fails and
-        # never calls check-sentence-detail for that locale, so
-        # detail_status stays None even though the locale has
-        # conclusively failed - that must report as 'fail', not
-        # 'incomplete'.
-        count_status = entry.get('count_status')
-        detail_status = entry.get('detail_status')
-        if count_status == 'fail' or detail_status == 'fail':
-            entry['status'] = 'fail'
-        elif count_status is None or detail_status is None:
-            entry['status'] = 'incomplete'
-        else:
-            entry['status'] = 'pass'
-        results[key] = entry
+            'checked_at': time.strftime('%Y-%m-%dT%H:%M:%S'),
+            **fields,
+        }
 
         result_path = Path(self.result_json_path)
         result_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Write to a temp file first and rename into place, so a
-        # process killed mid-write leaves the previous result.json
-        # intact instead of a truncated/corrupt one.
-        tmp_path = result_path.with_suffix(
-            result_path.suffix + f'.{os.getpid()}.tmp')
-        with open(tmp_path, 'w', encoding='utf-8') as f:
-            json.dump(
-                results, f, indent=2, ensure_ascii=False, sort_keys=True)
-        os.replace(tmp_path, result_path)
+        with open(result_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(event, ensure_ascii=False, sort_keys=True))
+            f.write('\n')
 
     @property
     def _headers(self) -> dict:
@@ -924,7 +965,8 @@ def setup_argument_parser():
     check_sentence_count_parser.add_argument(
         '--weblate-po-path', required=True, help='Path to weblate po')
     check_sentence_count_parser.add_argument(
-        '--result-json', required=False, help='Path to result JSON')
+        '--result-json', required=False,
+        help='Path to result JSON Lines log (append-only)')
     # Check sentence detail command
     check_sentence_detail_parser = subparser.add_parser(
         'check-sentence-detail',
@@ -942,7 +984,8 @@ def setup_argument_parser():
     check_sentence_detail_parser.add_argument(
         '--weblate-po-path', required=True, help='Path to weblate po')
     check_sentence_detail_parser.add_argument(
-        '--result-json', required=False, help='Path to result JSON')
+        '--result-json', required=False,
+        help='Path to result JSON Lines log (append-only)')
     return parser
 
 
