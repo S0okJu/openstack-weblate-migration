@@ -37,6 +37,12 @@ fi
 # Make logs directory
 mkdir -p logs
 
+# Per (project, version) verdict, one line per run, appended across
+# batch invocations. aggregate_report.py reads this as the source of
+# truth for success/failure instead of re-deriving it from raw logs.
+# Columns: completed_at, project, version, exit_code, run_id, started_at
+SUMMARY_LOG="logs/summary.tsv"
+
 echo "=== Migration starts ==="
 echo "Project file: $LIST_FILE"
 echo "Version file: $VERSION_FILE"
@@ -51,11 +57,19 @@ while IFS= read -r project || [ -n "$project" ]; do
         continue
     fi
     
-    mkdir -p logs/$project
+    # Trim before creating the log directory - otherwise a leading/
+    # trailing space in list.txt makes this word-split into the wrong
+    # path, and every later log write for this project silently goes
+    # missing (aggregate_report.py then can't classify its failures).
     project=$(echo "$project" | xargs)
+    mkdir -p "logs/$project"
     
-    # Generate timestamp for error log filename
-    TIMESTAMP=$(date +%H%M%S)
+    # Generate timestamp for error log filename. Includes the date (not
+    # just HH:MM:SS) since this value is also used as summary.tsv's
+    # run_id, which aggregate_report.py relies on to find the exact
+    # log file for a run - two runs of the same project at the same
+    # wall-clock second on different days must not collide.
+    TIMESTAMP=$(date +%Y%m%d%H%M%S)
     
     echo ""
     echo "=== Project: $project ==="
@@ -76,7 +90,15 @@ while IFS= read -r project || [ -n "$project" ]; do
         # path for log files
         LOG_FILE="logs/$project/project.${TIMESTAMP}.log"
         ERROR_LOG="logs/$project/error.${TIMESTAMP}.log"
-        
+
+        # Recorded alongside the verdict below so aggregate_report.py
+        # can tell which result.json entries (timestamped by
+        # weblate_utils.py's check_sentence_count/detail) were
+        # actually produced by *this* run, instead of trusting stale
+        # entries left over from an earlier run of the same
+        # (project, version).
+        run_started_at=$(date '+%Y-%m-%dT%H:%M:%S')
+
         # run migration.sh and save the log to the log file
         #
         # NOTE: We deliberately do not wrap this pipeline in an
@@ -101,6 +123,10 @@ while IFS= read -r project || [ -n "$project" ]; do
         else
             echo "[$total_count] Failed: '$project' (version: $version) (exit code: $migration_exit_code)"
         fi
+        printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$(date '+%Y-%m-%dT%H:%M:%S')" "$project" "$version" \
+            "$migration_exit_code" "$TIMESTAMP" "$run_started_at" \
+            >> "$SUMMARY_LOG"
         sleep 15
         
         echo "---"
