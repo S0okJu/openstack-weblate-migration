@@ -266,40 +266,98 @@ def build_report(logs_dir, workspace_dir):
     return rows
 
 
+HEADERS = ['project', 'version', 'component', 'locale', 'status', 'stage']
+
+
+def _summarize(rows):
+    """Return (total, fail_count, stage_counts) shared by every output
+    format, so the "N rows, M failing" / per-stage failure counts
+    can't drift between print_table(), format_markdown(), etc.
+
+    stage_counts is a list of (stage_label, count) pairs, sorted by
+    count descending (most common failure stage first) - same order
+    print_table has always used.
+    """
+    total = len(rows)
+    fail_count = sum(1 for r in rows if r['status'] not in ('success', 'pass'))
+    counts = {}
+    for r in rows:
+        if r['stage'] != '-':
+            counts[r['stage']] = counts.get(r['stage'], 0) + 1
+    stage_counts = sorted(counts.items(), key=lambda kv: -kv[1])
+    return total, fail_count, stage_counts
+
+
 def print_table(rows):
-    headers = ['project', 'version', 'component', 'locale', 'status', 'stage']
-    widths = [len(h) for h in headers]
+    widths = [len(h) for h in HEADERS]
     for row in rows:
-        for i, h in enumerate(headers):
+        for i, h in enumerate(HEADERS):
             widths[i] = max(widths[i], len(str(row[h])))
 
     def fmt_row(values):
         return '  '.join(
             str(v).ljust(widths[i]) for i, v in enumerate(values))
 
-    print(fmt_row(headers))
+    print(fmt_row(HEADERS))
     print('  '.join('-' * w for w in widths))
     for row in rows:
-        print(fmt_row(row[h] for h in headers))
+        print(fmt_row(row[h] for h in HEADERS))
 
-    total = len(rows)
-    fail_count = sum(1 for r in rows if r['status'] not in ('success', 'pass'))
+    total, fail_count, stage_counts = _summarize(rows)
     print()
     print(f"{total} rows, {fail_count} failing")
-    stage_counts = {}
-    for r in rows:
-        if r['stage'] != '-':
-            stage_counts[r['stage']] = stage_counts.get(r['stage'], 0) + 1
-    for stage, count in sorted(stage_counts.items(), key=lambda kv: -kv[1]):
+    for stage, count in stage_counts:
         print(f"  {stage}: {count}")
 
 
 def print_csv(rows):
-    headers = ['project', 'version', 'component', 'locale', 'status', 'stage']
-    writer = csv.DictWriter(sys.stdout, fieldnames=headers)
+    writer = csv.DictWriter(sys.stdout, fieldnames=HEADERS)
     writer.writeheader()
     for row in rows:
         writer.writerow(row)
+
+
+def _md_escape(value):
+    """Escape characters that would break a Markdown table row: '|'
+    (mistaken for a cell boundary) and newlines (which would split one
+    logical row across multiple lines). Values here only ever come
+    from Zanata/Weblate project/version/component/locale names or this
+    script's own status/stage labels, none of which are expected to
+    contain either, but the escape is cheap insurance against a table
+    silently breaking if one ever did.
+    """
+    return str(value).replace('|', '\\|').replace('\n', ' ')
+
+
+def format_markdown(rows):
+    """Render `rows` as a Markdown report: a project x version x
+    component x locale status table, followed by the same "N rows, M
+    failing" / per-stage summary print_table() shows (via
+    _summarize()), so the console table and this Markdown version can
+    never disagree - they're two renderings of the same rows list and
+    the same summary computation.
+
+    Returns the report as a single string (caller decides whether
+    that goes to a file or stdout).
+    """
+    lines = ['# Migration Report', '']
+    lines.append('| ' + ' | '.join(HEADERS) + ' |')
+    lines.append('| ' + ' | '.join(['---'] * len(HEADERS)) + ' |')
+    for row in rows:
+        lines.append(
+            '| ' + ' | '.join(_md_escape(row[h]) for h in HEADERS) + ' |')
+
+    total, fail_count, stage_counts = _summarize(rows)
+    lines.append('')
+    lines.append(f"**{total} rows, {fail_count} failing**")
+    if stage_counts:
+        lines.append('')
+        lines.append('| stage | count |')
+        lines.append('| --- | --- |')
+        for stage, count in stage_counts:
+            lines.append(f"| {_md_escape(stage)} | {count} |")
+
+    return '\n'.join(lines) + '\n'
 
 
 def main():
@@ -318,8 +376,14 @@ def main():
         help='Path to the migration workspace root containing '
              'projects/<project>/result.jsonl (default: ~/workspace)')
     parser.add_argument(
-        '--format', choices=['table', 'csv'], default='table',
-        help='Output format (default: table)')
+        '--format', choices=['table', 'csv', 'markdown'], default='table',
+        help='Output format written to stdout (default: table)')
+    parser.add_argument(
+        '--report-md', default=None,
+        help='Also write the Markdown report to this path, in addition '
+             'to the --format output on stdout. Renders the same rows '
+             '--format does, so the two can never disagree (see '
+             'batch-execution-readability Phase 4).')
     args = parser.parse_args()
 
     rows = build_report(args.logs_dir, args.workspace)
@@ -328,12 +392,37 @@ def main():
             f"[INFO] No runs found in {args.logs_dir}/summary.tsv",
             file=sys.stderr,
         )
+        if args.report_md:
+            Path(args.report_md).write_text(
+                '# Migration Report\n\n'
+                f"No runs found in {args.logs_dir}/summary.tsv.\n",
+                encoding='utf-8',
+            )
         return
+
+    # Rendered at most once and reused for both the --report-md file
+    # and (when --format markdown) stdout, rather than calling
+    # format_markdown() twice and doing the row/summary rendering
+    # work over again for the same rows.
+    markdown_text = None
+    if args.format == 'markdown' or args.report_md:
+        markdown_text = format_markdown(rows)
 
     if args.format == 'csv':
         print_csv(rows)
+    elif args.format == 'markdown':
+        print(markdown_text, end='')
     else:
         print_table(rows)
+
+    if args.report_md:
+        # Stage labels (e.g. STAGE_LABELS values) are Korean text, so
+        # this must not fall back to the platform's locale encoding
+        # (ASCII under LANG=C/POSIX) the way Path.write_text() does by
+        # default - match the explicit encoding='utf-8' used by every
+        # other file I/O in this module (load_result_events,
+        # classify_stage).
+        Path(args.report_md).write_text(markdown_text, encoding='utf-8')
 
 
 if __name__ == '__main__':
