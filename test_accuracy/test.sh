@@ -1,7 +1,7 @@
 source $SCRIPTSDIR/common/get_translation_path.sh
 
 TEST_DIR=$HOME/$WORKSPACE_NAME/projects/$PROJECT/test
-RESULT_JSON=$HOME/$WORKSPACE_NAME/projects/$PROJECT/result.json
+RESULT_JSON=$HOME/$WORKSPACE_NAME/projects/$PROJECT/result.jsonl
 
 function test_accuracy {
 

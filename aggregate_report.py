@@ -5,10 +5,11 @@ Reads:
   - logs/summary.tsv, the per (project, version) run verdict that
     migration_projects.sh appends to on every run (completed_at,
     project, version, exit_code, run_id, started_at).
-  - <workspace>/projects/<project>/result.json, the per (project,
-    category, component, locale) accuracy-check results that
-    common/weblate_utils.py persists (see migration-status-tracking
-    Phase 2).
+  - <workspace>/projects/<project>/result.jsonl, the per (project,
+    category, component, locale) accuracy-check events that
+    common/weblate_utils.py appends (see migration-status-tracking
+    Phase 2 and Phase 5), folded into one merged entry per key by
+    common.weblate_utils.reduce_result_events().
   - logs/<project>/project.<run_id>.log, to classify *where* a failed
     run stopped (clone / POT generation / Weblate component creation
     / accuracy check), by finding the last "[INFO] <stage>" marker
@@ -20,10 +21,13 @@ answered without opening every logs/<project>/error.*.log by hand.
 """
 import argparse
 import csv
-import json
 import os
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / 'common'))
+from weblate_utils import (  # noqa: E402
+    load_result_events, reduce_result_events)
 
 # Ordered (stage_key, marker_prefix, display_label) triples, in the
 # same order migration_resources.sh prints them. classify_stage() finds
@@ -43,8 +47,9 @@ STAGE_LABELS = {key: label for key, _, label in STAGE_MARKERS}
 UNKNOWN_STAGE = 'unknown'
 STAGE_LABELS[UNKNOWN_STAGE] = '알 수 없음 (로그 확인 필요)'
 
-# result.json's own 'status' field (see common/weblate_utils.py
-# _save_result) can be 'pass', 'fail', or 'incomplete' - the latter
+# The merged entry's 'status' field (derived by
+# common/weblate_utils.py reduce_result_events) can be 'pass', 'fail',
+# or 'incomplete' - the latter
 # meaning only one of count/detail check ran (e.g. the run was killed
 # between them), which is not the same as a confirmed mismatch and
 # must not be reported under the same accuracy-mismatch stage label.
@@ -122,13 +127,15 @@ def read_summary(logs_dir):
 
 
 def load_result_json(workspace_dir, project):
-    path = Path(workspace_dir) / 'projects' / project / 'result.json'
-    if not path.exists():
-        return {}
+    """Load and merge project's result.jsonl into the same
+    {"project/category/component/locale": entry} shape the old
+    single-file result.json used to hold, via
+    common.weblate_utils.load_result_events/reduce_result_events.
+    """
+    path = Path(workspace_dir) / 'projects' / project / 'result.jsonl'
     try:
-        with open(path, encoding='utf-8') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError) as e:
+        return reduce_result_events(load_result_events(path))
+    except OSError as e:
         print(
             f"[WARN] Failed to read {path}: {e} - "
             "treating as no accuracy data",
@@ -142,7 +149,7 @@ def zanata_category(version):
 
     Zanata doesn't allow '/' in version names, so migration_resources.sh
     replaces it with '-' before using the version as the Weblate
-    category/result.json 'category' field. summary.tsv keeps the raw
+    category/result.jsonl 'category' field. summary.tsv keeps the raw
     version (e.g. 'stable/2025.2'), so entries must be looked up by this
     normalized form, not the raw one.
     """
@@ -154,9 +161,10 @@ def _entry_sort_key(entry):
 
 
 def _entry_in_run_window(entry, run):
-    """True if `entry` (a result.json record) was written during `run`.
+    """True if `entry` (a merged result.jsonl record) was written
+    during `run`.
 
-    result.json accumulates across every past run of a project, so a
+    result.jsonl accumulates across every past run of a project, so a
     (project, category) match alone doesn't mean an entry came from
     the run being reported on - it could be a stale pass/fail left
     over from an earlier attempt at the same version. Both
@@ -171,8 +179,9 @@ def _entry_in_run_window(entry, run):
 
 
 def _accuracy_rows(project, version, entries):
-    """Turn result.json entries into report rows for one (project,
-    version), with each entry's stage set only when it didn't pass.
+    """Turn merged result.jsonl entries into report rows for one
+    (project, version), with each entry's stage set only when it
+    didn't pass.
     """
     rows = []
     for entry in sorted(entries, key=_entry_sort_key):
@@ -302,7 +311,7 @@ def main():
     parser.add_argument(
         '--workspace', default=os.path.expanduser('~/workspace'),
         help='Path to the migration workspace root containing '
-             'projects/<project>/result.json (default: ~/workspace)')
+             'projects/<project>/result.jsonl (default: ~/workspace)')
     parser.add_argument(
         '--format', choices=['table', 'csv'], default='table',
         help='Output format (default: table)')

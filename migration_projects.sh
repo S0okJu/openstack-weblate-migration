@@ -92,7 +92,7 @@ while IFS= read -r project || [ -n "$project" ]; do
         ERROR_LOG="logs/$project/error.${TIMESTAMP}.log"
 
         # Recorded alongside the verdict below so aggregate_report.py
-        # can tell which result.json entries (timestamped by
+        # can tell which result.jsonl entries (timestamped by
         # weblate_utils.py's check_sentence_count/detail) were
         # actually produced by *this* run, instead of trusting stale
         # entries left over from an earlier run of the same
