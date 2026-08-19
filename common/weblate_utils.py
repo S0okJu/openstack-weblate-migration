@@ -14,6 +14,7 @@
 
 import argparse
 from collections import defaultdict
+import fcntl
 import io
 import json
 import os
@@ -225,6 +226,18 @@ class WeblateUtils:
         does that merge - including the count_status/detail_status ->
         status derivation - at read time instead, from the plain
         event log this writes.
+
+        The write is wrapped in an exclusive fcntl.flock() so that if
+        multiple check-sentence-count/-detail processes ever append
+        to the same result_json_path concurrently (e.g. a future
+        parallelized test_accuracy/test.sh), their lines can't tear
+        into each other. Without the lock, two processes' write()
+        calls to the same shared file offset can interleave their
+        bytes, producing a line that is neither event's JSON - unlike
+        a truncated last line (see load_result_events), a torn
+        interior line isn't distinguishable from valid JSON that
+        happens to be malformed, so it's not safely recoverable after
+        the fact and must be prevented at write time instead.
         """
         if not self.result_json_path:
             return
@@ -237,12 +250,13 @@ class WeblateUtils:
             'checked_at': time.strftime('%Y-%m-%dT%H:%M:%S'),
             **fields,
         }
+        line = json.dumps(event, ensure_ascii=False, sort_keys=True) + '\n'
 
         result_path = Path(self.result_json_path)
         result_path.parent.mkdir(parents=True, exist_ok=True)
         with open(result_path, 'a', encoding='utf-8') as f:
-            f.write(json.dumps(event, ensure_ascii=False, sort_keys=True))
-            f.write('\n')
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            f.write(line)
 
     @property
     def _headers(self) -> dict:
