@@ -37,7 +37,7 @@ function test_accuracy {
             local version_dir=${ZANATA_VERSION//./-}
             local weblate_po_path=$(get_po_path $component $locale $TEST_DIR/$PROJECT/$version_dir true)
 
-            echo "[INFO] Step 1/3: Check the component/locale existence..."
+            echo "[INFO] Step 1/4: Check the component/locale existence..."
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-translation-existence \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
@@ -51,7 +51,7 @@ function test_accuracy {
                 exit 1
             fi
 
-            echo "[INFO] Step 2/3: Check the sentence count..."
+            echo "[INFO] Step 2/4: Check the sentence count..."
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-count \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
@@ -65,7 +65,7 @@ function test_accuracy {
                 exit 1
             fi
 
-            echo "[INFO] Step 3/3: Check the sentence detail..."
+            echo "[INFO] Step 3/4: Check the sentence detail..."
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-detail \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
@@ -76,6 +76,19 @@ function test_accuracy {
                 --result-json $RESULT_JSON
             then
                 echo "[ERROR] Check the sentence detail failed: $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
+                exit 1
+            fi
+
+            echo "[INFO] Step 4/4: Check the PO format (msgfmt --check)..."
+            if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-po-format \
+                --project $PROJECT \
+                --category $ZANATA_VERSION \
+                --component $component \
+                --locale $locale \
+                --weblate-po-path $weblate_po_path \
+                --result-json $RESULT_JSON
+            then
+                echo "[ERROR] PO format check failed: $PROJECT, $ZANATA_VERSION, $component, $locale, $weblate_po_path"
                 exit 1
             fi
 
