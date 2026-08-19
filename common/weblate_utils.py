@@ -20,6 +20,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 import time
 import traceback
@@ -156,13 +157,14 @@ def reduce_result_events(events) -> dict:
         })
         results[key] = entry
 
-    # existence_status/count_status/detail_status are only set by
-    # check_translation_existence/check_sentence_count/
-    # check_sentence_detail respectively, when that check actually
-    # runs. Deriving "pass" from count_errors/detail_errors being
-    # empty would be wrong here: an entry that has never had one of
-    # the three checks run against it also has an empty error list for
-    # that check, which is not the same as having passed it.
+    # existence_status/count_status/detail_status/format_status are
+    # only set by check_translation_existence/check_sentence_count/
+    # check_sentence_detail/check_po_format respectively, when that
+    # check actually runs. Deriving "pass" from count_errors/
+    # detail_errors being empty would be wrong here: an entry that has
+    # never had one of the four checks run against it also has an
+    # empty error list for that check, which is not the same as having
+    # passed it.
     #
     # A 'fail' is checked first and wins over a missing status:
     # test_accuracy() stops after check-translation-existence or
@@ -174,9 +176,12 @@ def reduce_result_events(events) -> dict:
         existence_status = entry.get('existence_status')
         count_status = entry.get('count_status')
         detail_status = entry.get('detail_status')
-        if 'fail' in (existence_status, count_status, detail_status):
+        format_status = entry.get('format_status')
+        statuses = (existence_status, count_status, detail_status,
+                    format_status)
+        if 'fail' in statuses:
             entry['status'] = 'fail'
-        elif None in (existence_status, count_status, detail_status):
+        elif None in statuses:
             entry['status'] = 'incomplete'
         else:
             entry['status'] = 'pass'
@@ -1038,6 +1043,77 @@ class WeblateUtils:
 
         return detail_ok
 
+    def check_po_format(
+        self,
+        project_name: str,
+        category_name: str,
+        component_name: str,
+        locale: str,
+        weblate_po_path: str,
+    ) -> bool:
+        """Check that the Weblate PO file is valid gettext PO/MO format.
+
+        check_sentence_count/check_sentence_detail only ever compare
+        whether Zanata and Weblate *agree* on content - they never
+        ask whether that content is itself a syntactically valid PO
+        file. An encoding or format break introduced during migration
+        can leave Zanata/Weblate content looking identical while the
+        Weblate PO is actually broken for a real gettext build (e.g.
+        a msgid/msgstr format-specifier mismatch, or a syntax error).
+        `msgfmt --check` is the same tool the real build uses to
+        compile the PO, so it's a direct check of buildability rather
+        than a re-implementation of gettext's own validation rules.
+
+        :param project_name: Name of the project
+        :param category_name: Name of the category
+        :param component_name: Name of the component
+        :param locale: Name of the locale
+        :param weblate_po_path: Path to the weblate po file
+        :returns: True if msgfmt --check reports no errors
+        """
+        try:
+            result = subprocess.run(
+                ['msgfmt', '--check', '-o', os.devnull, weblate_po_path],
+                capture_output=True, text=True,
+            )
+        except FileNotFoundError:
+            error_msg = (
+                "msgfmt is not installed or not on PATH - cannot "
+                "validate PO format"
+            )
+            print(f"[ERROR] {error_msg}")
+            self._save_result(
+                project_name, category_name, component_name, locale,
+                format_errors=[error_msg],
+                format_status='fail',
+            )
+            return False
+
+        if result.returncode != 0:
+            # msgfmt writes one diagnostic per line to stderr; warnings
+            # (e.g. missing optional header fields) don't affect the
+            # exit code, only fatal errors do, so a non-zero exit here
+            # means a real format problem.
+            error_lines = [
+                line for line in result.stderr.splitlines() if line.strip()
+            ]
+            for line in error_lines:
+                print(f"[ERROR] msgfmt: {line}")
+            self._save_result(
+                project_name, category_name, component_name, locale,
+                format_errors=error_lines,
+                format_status='fail',
+            )
+            return False
+
+        print(f"[INFO] ✓ PO format valid (msgfmt --check): {locale}")
+        self._save_result(
+            project_name, category_name, component_name, locale,
+            format_errors=[],
+            format_status='pass',
+        )
+        return True
+
 
 def setup_argument_parser():
     """Setup command line argument parser with subcommands."""
@@ -1161,6 +1237,24 @@ def setup_argument_parser():
     check_sentence_detail_parser.add_argument(
         '--result-json', required=False,
         help='Path to result JSON Lines log (append-only)')
+    # Check PO format command
+    check_po_format_parser = subparser.add_parser(
+        'check-po-format',
+        help='Check the weblate PO file is valid gettext format '
+             '(msgfmt --check)')
+    check_po_format_parser.add_argument(
+        '--project', required=True, help='Name of the project')
+    check_po_format_parser.add_argument(
+        '--category', required=True, help='Name of the category')
+    check_po_format_parser.add_argument(
+        '--component', required=True, help='Name of the component')
+    check_po_format_parser.add_argument(
+        '--locale', required=True, help='Name of the locale')
+    check_po_format_parser.add_argument(
+        '--weblate-po-path', required=True, help='Path to weblate po')
+    check_po_format_parser.add_argument(
+        '--result-json', required=False,
+        help='Path to result JSON Lines log (append-only)')
     return parser
 
 
@@ -1216,6 +1310,12 @@ def main():
             passed = utils.check_sentence_detail(
                 args.project, args.category, args.component, args.locale,
                 args.zanata_po_path, args.weblate_po_path)
+            if not passed:
+                sys.exit(1)
+        elif args.command == 'check-po-format':
+            passed = utils.check_po_format(
+                args.project, args.category, args.component, args.locale,
+                args.weblate_po_path)
             if not passed:
                 sys.exit(1)
         else:
