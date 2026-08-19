@@ -28,9 +28,18 @@ if [ ! -f "$MIGRATION_SCRIPT" ]; then
     exit 1
 fi
 
+# Provides colorize()/RED/GREEN/YELLOW/NC/IS_TTY for the status lines
+# below. Sourced here (in this process) rather than relying on
+# migration_resources.sh's copy, because IS_TTY must reflect *this*
+# process's own stdout - migration_resources.sh is invoked below as
+# `"$MIGRATION_SCRIPT" ... | while read line; do ... done`, so its
+# stdout is always a pipe, even during an interactive batch run at a
+# real terminal.
+source "$(dirname "$0")/migration/pretty-printer.sh"
+
 # Check the execution permission of the script
 if [ ! -x "$MIGRATION_SCRIPT" ]; then
-    echo "Warning: migration_resources.sh does not have execution permission. Granting execution permission."
+    colorize "$YELLOW" "Warning: migration_resources.sh does not have execution permission. Granting execution permission."
     chmod +x "$MIGRATION_SCRIPT"
 fi
 
@@ -174,19 +183,37 @@ while IFS= read -r project || [ -n "$project" ]; do
         # exit code of MIGRATION_SCRIPT, and must be read immediately
         # after the pipeline, before any other command runs.
         "$MIGRATION_SCRIPT" "$project" "$version" 2>&1 | while IFS= read -r line; do
-            # save the version to the log file
-            echo "$version | $line" | tee -a "$LOG_FILE"
+            plain_line="$version | $line"
+            # Log file writes must always stay plain text - never
+            # colorize this, or error.*.log/project.*.log end up with
+            # raw ANSI escape bytes in them, which breaks grep and the
+            # README's `version | message` log format. (This replaces
+            # the previous `tee -a "$LOG_FILE"`, which piped the same
+            # string to both the file and stdout at once and so had no
+            # way to make the two diverge.)
+            echo "$plain_line" >> "$LOG_FILE"
+            # migration_resources.sh's own [ERROR]/[Failed] lines
+            # arrive here as plain text regardless of whether *it* was
+            # run at a real terminal, because its stdout is always a
+            # pipe in this context (see the IS_TTY comment on the
+            # `source pretty-printer.sh` line above) - so it's safe to
+            # colorize purely by matching the tag text.
+            if [[ "$line" == \[ERROR\]* || "$line" == \[Failed\]* ]]; then
+                colorize "$RED" "$plain_line"
+            else
+                echo "$plain_line"
+            fi
             # save the error line to the error log file
             if [[ "$line" == \[ERROR\]* ]]; then
-                echo "$version | $line" >> "$ERROR_LOG"
+                echo "$plain_line" >> "$ERROR_LOG"
             fi
         done
         migration_exit_code=${PIPESTATUS[0]}
 
         if [ "$migration_exit_code" -eq 0 ]; then
-            echo "[$total_count] Success: '$project' (version: $version)"
+            colorize "$GREEN" "[$total_count] Success: '$project' (version: $version)"
         else
-            echo "[$total_count] Failed: '$project' (version: $version) (exit code: $migration_exit_code)"
+            colorize "$RED" "[$total_count] Failed: '$project' (version: $version) (exit code: $migration_exit_code)"
         fi
         printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
             "$(date '+%Y-%m-%dT%H:%M:%S')" "$project" "$version" \

@@ -40,25 +40,25 @@ export LANG=en_US.UTF-8
 # system environment variables.
 echo "[INFO] Check variables"
 if [ -z "$WEBLATE_URL" ] || [ "$WEBLATE_URL" == "<weblate_url>" ]; then
-    echo "[ERROR] WEBLATE_URL is not set"
+    colorize "$RED" "[ERROR] WEBLATE_URL is not set"
     exit 1
 fi
 if [ -z "$WEBLATE_TOKEN" ] || [ "$WEBLATE_TOKEN" == "<weblate_token>" ]; then
-    echo "[ERROR] WEBLATE_TOKEN is not set"
+    colorize "$RED" "[ERROR] WEBLATE_TOKEN is not set"
     exit 1
 fi
 echo "[INFO] WEBLATE_URL and WEBLATE_TOKEN are set"
 
 stage "Setup environment and prepare workspace"
 if ! setup_env_and_prepare_workspace "$PROJECT"; then
-    echo "[ERROR] Failed to setup environment and prepare workspace"
+    colorize "$RED" "[ERROR] Failed to setup environment and prepare workspace"
     exit 1
 fi
 endstage
 
 stage "Clone $PROJECT project"
 if ! clone_project "$PROJECT" "$ZANATA_VERSION"; then
-    echo "[ERROR] Failed to clone $PROJECT project"
+    colorize "$RED" "[ERROR] Failed to clone $PROJECT project"
     exit 1
 fi
 endstage
