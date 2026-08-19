@@ -926,8 +926,52 @@ class WeblateUtils:
 
             weblate_entry = weblate_dict[key]
 
+            if zanata_entry.msgid_plural:
+                # Plural entries carry msgstr_plural (a dict of
+                # index -> string) instead of msgstr, which stays ''
+                # for them - a plain msgstr comparison silently
+                # no-ops for every plural entry and never catches a
+                # broken or lost plural translation. Compare index by
+                # index instead.
+                zanata_plurals = zanata_entry.msgstr_plural
+                weblate_plurals = weblate_entry.msgstr_plural
+                entry_mismatched = False
+
+                if zanata_plurals.keys() != weblate_plurals.keys():
+                    error_msg = (
+                        f"Plural form count mismatch for msgid: "
+                        f"'{msgid}' msgctxt: '{msgctxt}' "
+                        f"- Zanata indices: "
+                        f"{sorted(zanata_plurals.keys())} "
+                        f"- Weblate indices: "
+                        f"{sorted(weblate_plurals.keys())}"
+                    )
+                    print(f"[ERROR] {error_msg}")
+                    errors.append(error_msg)
+                    entry_mismatched = True
+
+                common_indices = (
+                    zanata_plurals.keys() & weblate_plurals.keys()
+                )
+                for index in sorted(common_indices):
+                    if zanata_plurals[index] != weblate_plurals[index]:
+                        error_msg = (
+                            f"Plural translation mismatch for msgid: "
+                            f"'{msgid}' msgctxt: '{msgctxt}' "
+                            f"index {index} "
+                            f"- Zanata msgstr[{index}]: "
+                            f"'{zanata_plurals[index]}' "
+                            f"- Weblate msgstr[{index}]: "
+                            f"'{weblate_plurals[index]}'"
+                        )
+                        print(f"[ERROR] {error_msg}")
+                        errors.append(error_msg)
+                        entry_mismatched = True
+
+                if entry_mismatched:
+                    mismatch_count += 1
             # Compare msgstr from zanata and weblate
-            if zanata_entry.msgstr != weblate_entry.msgstr:
+            elif zanata_entry.msgstr != weblate_entry.msgstr:
                 error_msg = (
                     f"Translation mismatch for msgid: '{msgid}' "
                     f"msgctxt: '{msgctxt}' "
