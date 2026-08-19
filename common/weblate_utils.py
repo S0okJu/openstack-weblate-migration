@@ -22,6 +22,7 @@ from pathlib import Path
 import re
 import sys
 import time
+import traceback
 from urllib.parse import urljoin
 import zipfile
 import polib
@@ -1056,8 +1057,14 @@ def main():
             sys.exit(1)
     except Exception as e:
         print(f"[ERROR] Failed to migrate: {e}")
-        import traceback
         traceback.print_exc()
+        # Without this, an uncaught exception anywhere in a subcommand
+        # (network error, missing file, corrupt PO, ...) is printed
+        # here and then main() returns normally, so the process still
+        # exits 0 - callers like test_accuracy/test.sh and
+        # migration_projects.sh that branch on exit code see a false
+        # success.
+        sys.exit(1)
 
 
 if __name__ == "__main__":
