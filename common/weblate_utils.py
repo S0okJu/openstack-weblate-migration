@@ -156,25 +156,27 @@ def reduce_result_events(events) -> dict:
         })
         results[key] = entry
 
-    # count_status/detail_status are only set by check_sentence_count
-    # /check_sentence_detail respectively, when that check actually
+    # existence_status/count_status/detail_status are only set by
+    # check_translation_existence/check_sentence_count/
+    # check_sentence_detail respectively, when that check actually
     # runs. Deriving "pass" from count_errors/detail_errors being
     # empty would be wrong here: an entry that has never had one of
-    # the two checks run against it also has an empty error list for
+    # the three checks run against it also has an empty error list for
     # that check, which is not the same as having passed it.
     #
     # A 'fail' is checked first and wins over a missing status:
-    # test_accuracy() stops after check-sentence-count fails and
-    # never calls check-sentence-detail for that locale, so
-    # detail_status stays None even though the locale has
-    # conclusively failed - that must report as 'fail', not
+    # test_accuracy() stops after check-translation-existence or
+    # check-sentence-count fails and never calls the checks after it
+    # for that locale, so their status stays None even though the
+    # locale has conclusively failed - that must report as 'fail', not
     # 'incomplete'.
     for entry in results.values():
+        existence_status = entry.get('existence_status')
         count_status = entry.get('count_status')
         detail_status = entry.get('detail_status')
-        if count_status == 'fail' or detail_status == 'fail':
+        if 'fail' in (existence_status, count_status, detail_status):
             entry['status'] = 'fail'
-        elif count_status is None or detail_status is None:
+        elif None in (existence_status, count_status, detail_status):
             entry['status'] = 'incomplete'
         else:
             entry['status'] = 'pass'
@@ -678,6 +680,83 @@ class WeblateUtils:
 
         return None
 
+    def check_translation_existence(
+        self,
+        project_name: str,
+        category_name: str,
+        component_name: str,
+        locale: str,
+        zanata_po_path: str,
+        weblate_po_path: str,
+    ) -> bool:
+        """Check that the Zanata and Weblate PO files actually exist.
+
+        The accuracy-check loop iterates locales driven by which
+        Zanata PO files exist locally. If a component - or just one
+        locale of it - was never created in Weblate, its PO file
+        never lands in the downloaded/extracted Weblate translation
+        tree. Without this check, that absence only ever surfaced as
+        an uncaught FileNotFoundError deep inside polib.pofile() in
+        check_sentence_count, indistinguishable from any other
+        unexpected parse/IO failure. This promotes that absence to
+        its own explicit, recorded check, run before count/detail so
+        those checks are never attempted against a file that isn't
+        there.
+
+        :param project_name: Name of the project
+        :param category_name: Name of the category
+        :param component_name: Name of the component
+        :param locale: Name of the locale
+        :param zanata_po_path: Path to the zanata po file
+        :param weblate_po_path: Path to the weblate po file
+        :returns: True if both files exist, False otherwise
+        """
+        missing = []
+        if not os.path.isfile(zanata_po_path):
+            missing.append(f"zanata:{zanata_po_path}")
+        if not os.path.isfile(weblate_po_path):
+            missing.append(f"weblate:{weblate_po_path}")
+
+        if missing:
+            error_msg = (
+                "Component/locale does not exist - missing PO "
+                "file(s): " + ", ".join(missing)
+            )
+            print(f"[ERROR] {error_msg}")
+            self._save_result(
+                project_name, category_name, component_name, locale,
+                existence_errors=[error_msg],
+                existence_status='fail',
+                # Count/detail cannot run this pass. Reset their
+                # status explicitly so a stale pass/fail left over
+                # from an earlier successful run of this same key
+                # doesn't linger next to today's existence failure.
+                count_status=None,
+                total_zanata=None,
+                total_weblate=None,
+                translated_zanata=None,
+                translated_weblate=None,
+                count_errors=[],
+                detail_status=None,
+                total_entries=None,
+                mismatch_count=None,
+                missing_count=None,
+                extra_count=None,
+                detail_errors=[],
+            )
+            return False
+
+        print(
+            f"[INFO] ✓ Component/locale exists in both Zanata and "
+            f"Weblate: {locale}"
+        )
+        self._save_result(
+            project_name, category_name, component_name, locale,
+            existence_errors=[],
+            existence_status='pass',
+        )
+        return True
+
     def check_sentence_count(
         self,
         project_name: str,
@@ -982,6 +1061,25 @@ def setup_argument_parser():
         '--project', required=True, help='Name of the project')
     download_translation_file_parser.add_argument(
         '--po-path', required=True, help='Path to po file')
+    # Check translation existence command
+    check_translation_existence_parser = subparser.add_parser(
+        'check-translation-existence',
+        help='Check that the component/locale PO files exist')
+    check_translation_existence_parser.add_argument(
+        '--project', required=True, help='Name of the project')
+    check_translation_existence_parser.add_argument(
+        '--category', required=True, help='Name of the category')
+    check_translation_existence_parser.add_argument(
+        '--component', required=True, help='Name of the component')
+    check_translation_existence_parser.add_argument(
+        '--locale', required=True, help='Name of the locale')
+    check_translation_existence_parser.add_argument(
+        '--zanata-po-path', required=True, help='Path to the zanata po file')
+    check_translation_existence_parser.add_argument(
+        '--weblate-po-path', required=True, help='Path to weblate po')
+    check_translation_existence_parser.add_argument(
+        '--result-json', required=False,
+        help='Path to result JSON Lines log (append-only)')
     # Check sentence count command
     check_sentence_count_parser = subparser.add_parser(
         'check-sentence-count', help='Check the sentence count of the translation')
@@ -1057,6 +1155,12 @@ def main():
         elif args.command == 'download-translation-file':
             utils.download_translation_file(
                 args.project, args.po_path)
+        elif args.command == 'check-translation-existence':
+            passed = utils.check_translation_existence(
+                args.project, args.category, args.component, args.locale,
+                args.zanata_po_path, args.weblate_po_path)
+            if not passed:
+                sys.exit(1)
         elif args.command == 'check-sentence-count':
             passed = utils.check_sentence_count(
                 args.project, args.category, args.component, args.locale,
