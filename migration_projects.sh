@@ -43,6 +43,53 @@ mkdir -p logs
 # Columns: completed_at, project, version, exit_code, run_id, started_at
 SUMMARY_LOG="logs/summary.tsv"
 
+# Count non-empty (post-trim) lines in a file, using the exact same
+# blank-line test the main loops below use ([[ -z "${line// }" ]]) so
+# this count always matches the number of iterations the loops will
+# actually perform.
+count_valid_lines() {
+    local file="$1"
+    local count=0
+    local line
+    while IFS= read -r line || [ -n "$line" ]; do
+        if [[ -z "${line// }" ]]; then
+            continue
+        fi
+        count=$((count + 1))
+    done < "$file"
+    echo "$count"
+}
+
+# Precompute the total number of (project, version) pairs so the
+# progress percentage has a known denominator from the very first
+# item, instead of only being derivable after the batch finishes.
+project_count=$(count_valid_lines "$LIST_FILE")
+version_count=$(count_valid_lines "$VERSION_FILE")
+total_pairs=$((project_count * version_count))
+# Defensive fallback: this should be unreachable in practice (the
+# main loops below can only iterate if total_pairs > 0), but avoids a
+# division by zero if that invariant is ever violated.
+if [ "$total_pairs" -eq 0 ]; then
+    total_pairs=1
+fi
+
+# Convert a whole number of seconds into a short Korean duration
+# string for the ETA display.
+format_duration() {
+    local total_seconds=$1
+    local hours=$((total_seconds / 3600))
+    local minutes=$(((total_seconds % 3600) / 60))
+    local seconds=$((total_seconds % 60))
+
+    if [ "$hours" -gt 0 ]; then
+        echo "${hours}시간 ${minutes}분"
+    elif [ "$minutes" -gt 0 ]; then
+        echo "${minutes}분 ${seconds}초"
+    else
+        echo "${seconds}초"
+    fi
+}
+
 echo "=== Migration starts ==="
 echo "Project file: $LIST_FILE"
 echo "Version file: $VERSION_FILE"
@@ -50,6 +97,11 @@ echo "Log directory: $LOG_DIR"
 echo "====================="
 
 total_count=0
+# Cumulative wall-clock time (seconds) spent on items completed so
+# far in this run, and how many items that covers. Used to compute
+# the average per-item time for the ETA estimate below.
+total_elapsed=0
+completed_items=0
 
 while IFS= read -r project || [ -n "$project" ]; do   
     echo "=== Project: $project ==="
@@ -85,8 +137,21 @@ while IFS= read -r project || [ -n "$project" ]; do
         version=$(echo "$version" | xargs)
         
         ((total_count++))
-        echo "[$total_count] 처리 중: '$project' (버전: $version)"
-        
+
+        percent=$((total_count * 100 / total_pairs))
+        if [ "$completed_items" -gt 0 ]; then
+            avg_seconds=$((total_elapsed / completed_items))
+            remaining_items=$((total_pairs - total_count + 1))
+            eta_seconds=$((avg_seconds * remaining_items))
+            eta_display="예상 남은 시간: $(format_duration "$eta_seconds")"
+        else
+            # No item has finished yet in this run, so there's no
+            # average processing time to base an estimate on.
+            eta_display="예상 남은 시간: 계산 중..."
+        fi
+        echo "[$total_count/$total_pairs] (${percent}%) 처리 중: '$project' (버전: $version) ($eta_display)"
+        item_start_epoch=$(date +%s)
+
         # path for log files
         LOG_FILE="logs/$project/project.${TIMESTAMP}.log"
         ERROR_LOG="logs/$project/error.${TIMESTAMP}.log"
@@ -128,7 +193,14 @@ while IFS= read -r project || [ -n "$project" ]; do
             "$migration_exit_code" "$TIMESTAMP" "$run_started_at" \
             >> "$SUMMARY_LOG"
         sleep 15
-        
+
+        # Roll this item's wall-clock time (migration run + the fixed
+        # sleep above, since every remaining item pays that same cost)
+        # into the running average used for the next item's ETA.
+        item_end_epoch=$(date +%s)
+        total_elapsed=$((total_elapsed + item_end_epoch - item_start_epoch))
+        completed_items=$((completed_items + 1))
+
         echo "---"
     done < "$VERSION_FILE"
     
