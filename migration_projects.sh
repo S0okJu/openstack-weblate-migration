@@ -43,6 +43,13 @@ if [ ! -x "$MIGRATION_SCRIPT" ]; then
     chmod +x "$MIGRATION_SCRIPT"
 fi
 
+# Root directory for all log output, referenced in the startup banner
+# below. Other log paths in this script (mkdir -p logs, SUMMARY_LOG,
+# per-project log/error files, aggregate_report.py's --logs-dir) keep
+# using the literal "logs" directly rather than $LOG_DIR - this
+# variable exists only so the banner doesn't print an empty value.
+LOG_DIR="logs"
+
 # Make logs directory
 mkdir -p logs
 
