@@ -813,8 +813,17 @@ class WeblateUtils:
         zanata_entries = [e for e in zanata_po if not e.obsolete]
         weblate_entries = [e for e in weblate_po if not e.obsolete]
 
-        # Create a dictionary for Weblate entries by msgid for fast lookup
-        weblate_dict = {entry.msgid: entry for entry in weblate_entries}
+        # Key entries by (msgid, msgctxt) rather than msgid alone.
+        # The same msgid can legitimately repeat with a different
+        # msgctxt (e.g. the same source string used in two different
+        # screens with different meanings). Keying on msgid alone
+        # collapses those distinct entries into one another - either
+        # matching two unrelated entries as if they were the same
+        # (masking a real mismatch/missing entry), or comparing the
+        # wrong pair and reporting a false mismatch.
+        weblate_dict = {
+            (entry.msgid, entry.msgctxt): entry for entry in weblate_entries
+        }
 
         mismatch_count = 0
         missing_count = 0
@@ -822,21 +831,27 @@ class WeblateUtils:
 
         for zanata_entry in zanata_entries:
             msgid = zanata_entry.msgid
+            msgctxt = zanata_entry.msgctxt
+            key = (msgid, msgctxt)
 
-            # Check it msgid exists in Weblate
-            if msgid not in weblate_dict:
-                error_msg = f"Missing in Weblate: msgid='{msgid}'"
+            # Check if (msgid, msgctxt) exists in Weblate
+            if key not in weblate_dict:
+                error_msg = (
+                    f"Missing in Weblate: msgid='{msgid}' "
+                    f"msgctxt='{msgctxt}'"
+                )
                 print(f"[ERROR] {error_msg}")
                 errors.append(error_msg)
                 missing_count += 1
                 continue
 
-            weblate_entry = weblate_dict[msgid]
+            weblate_entry = weblate_dict[key]
 
             # Compare msgstr from zanata and weblate
             if zanata_entry.msgstr != weblate_entry.msgstr:
                 error_msg = (
                     f"Translation mismatch for msgid: '{msgid}' "
+                    f"msgctxt: '{msgctxt}' "
                     f"- Zanata msgstr: '{zanata_entry.msgstr}' "
                     f"- Weblate msgstr: '{weblate_entry.msgstr}'"
                 )
@@ -845,10 +860,10 @@ class WeblateUtils:
                 mismatch_count += 1
 
         # Check for entries in Weblate but not in Zanata
-        zanata_msgids = {e.msgid for e in zanata_entries}
+        zanata_keys = {(e.msgid, e.msgctxt) for e in zanata_entries}
         extra_in_weblate = [
-            msgid for msgid in weblate_dict.keys()
-            if msgid not in zanata_msgids
+            key for key in weblate_dict.keys()
+            if key not in zanata_keys
         ]
 
         weblate_extra_count = len(extra_in_weblate)
@@ -859,8 +874,11 @@ class WeblateUtils:
             )
 
             # show first 5 extra entries on weblate
-            for msgid in extra_in_weblate[:5]:
-                error_msg = f"Extra msgid on weblate: '{msgid[:50]}'"
+            for msgid, msgctxt in extra_in_weblate[:5]:
+                error_msg = (
+                    f"Extra msgid on weblate: '{msgid[:50]}' "
+                    f"msgctxt: '{msgctxt}'"
+                )
                 print(f"[ERROR] {error_msg}")
                 errors.append(error_msg)
 
