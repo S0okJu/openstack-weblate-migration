@@ -60,6 +60,7 @@ if ! clone_project "$PROJECT" "$ZANATA_VERSION"; then
     exit 1
 fi
 
+echo "[INFO] Prepare POT and determine components"
 case $PROJECT in
     api-site)
         setup_manuals
