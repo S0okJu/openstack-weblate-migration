@@ -58,6 +58,7 @@ def main():
     is_exist = check_lang_exist(converted_lang_code)
     if not is_exist:
         print(f"[ERROR] {converted_lang_code} is invalid")
+        sys.exit(1)
 
     print(f"[INFO] Convert {po_lang_data} to {converted_lang_code}")
     po.metadata['Language'] = converted_lang_code
