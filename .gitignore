@@ -1,3 +1,4 @@
 logs/
+report.md
 __pycache__/
 .claude/settings.local.json
