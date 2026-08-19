@@ -12,8 +12,12 @@ Reads:
     common.weblate_utils.reduce_result_events().
   - logs/<project>/project.<run_id>.log, to classify *where* a failed
     run stopped (clone / POT generation / Weblate component creation
-    / accuracy check), by finding the last "[INFO] <stage>" marker
-    migration_resources.sh printed for that version before it exited.
+    / accuracy check), by finding the last stage marker
+    migration_resources.sh printed for that version before it exited
+    (most stages via pretty-printer.sh's stage(), which prints
+    "# <title>"; env_check/cleanup are plain "[INFO] <text>" lines
+    since they aren't wrapped in stage()/endstage() - see
+    batch-execution-readability Phase 1).
 
 Prints a project x version x component x locale status table (or CSV)
 so "how far did the migration get, and where did it fail" can be
@@ -35,12 +39,13 @@ from weblate_utils import (  # noqa: E402
 # code was captured, i.e. the stage that was in progress when it died.
 STAGE_MARKERS = [
     ('env_check', '[INFO] Check variables', '환경변수 확인 실패'),
-    ('setup', '[INFO] Setup environment and prepare workspace', '환경설정 실패'),
-    ('clone', '[INFO] Clone ', 'clone 실패'),
-    ('pot', '[INFO] Prepare POT and determine components', 'POT 생성 실패'),
-    ('weblate_component', '[INFO] Create Weblate components',
+    ('setup', '# Setup environment and prepare workspace', '환경설정 실패'),
+    ('clone', '# Clone ', 'clone 실패'),
+    ('pot', '# Generate POT and export translations from Zanata',
+     'POT 생성/Zanata export 실패'),
+    ('weblate_component', '# Create Weblate components',
      'Weblate 컴포넌트 생성 실패'),
-    ('accuracy', '[INFO] Start Accuracy Test', '정합성 불일치'),
+    ('accuracy', '# Start Accuracy Test', '정합성 불일치'),
     ('cleanup', '[INFO] Clean up workspace directory', '성공(정리 단계 도달)'),
 ]
 STAGE_LABELS = {key: label for key, _, label in STAGE_MARKERS}

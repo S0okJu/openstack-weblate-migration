@@ -31,6 +31,7 @@ source $SCRIPTSDIR/prepare_translations/get_translations.sh
 source $SCRIPTSDIR/prepare_component_name/get_project_component_name.sh
 source $SCRIPTSDIR/prepare_weblate_components/create_weblate_components.sh
 source $SCRIPTSDIR/test_accuracy/test.sh
+source $SCRIPTSDIR/migration/pretty-printer.sh
 
 # We need a UTF-8 locale, set it properly in case it's not set.
 export LANG=en_US.UTF-8
@@ -48,19 +49,32 @@ if [ -z "$WEBLATE_TOKEN" ] || [ "$WEBLATE_TOKEN" == "<weblate_token>" ]; then
 fi
 echo "[INFO] WEBLATE_URL and WEBLATE_TOKEN are set"
 
-echo "[INFO] Setup environment and prepare workspace"
+stage "Setup environment and prepare workspace"
 if ! setup_env_and_prepare_workspace "$PROJECT"; then
     echo "[ERROR] Failed to setup environment and prepare workspace"
     exit 1
 fi
+endstage
 
-echo "[INFO] Clone $PROJECT project"
+stage "Clone $PROJECT project"
 if ! clone_project "$PROJECT" "$ZANATA_VERSION"; then
     echo "[ERROR] Failed to clone $PROJECT project"
     exit 1
 fi
+endstage
 
-echo "[INFO] Prepare POT and determine components"
+# NOTE: POT generation (setup_*, which writes zanata.xml) and the Zanata
+# export (pull_translation_files) are kept in a single stage here rather
+# than split into two, because get_django_component_names/
+# get_doc_component_names (used by the default `*` branch below) detect
+# components by checking for .pot files that pull_translation_files
+# writes - they only exist *after* the Zanata pull runs. Splitting this
+# into separate top-level stages would require either reordering the
+# pull ahead of POT-based component detection (breaking it for the
+# default branch) or duplicating stage/endstage inside all seven case
+# arms; both are out of scope for this consistency-only change. See
+# phase-1 result doc for details.
+stage "Generate POT and export translations from Zanata"
 case $PROJECT in
     api-site)
         setup_manuals
@@ -111,12 +125,15 @@ if [ ${#COMPONENTS[@]} -eq 0 ]; then
     exit 1
 fi
 echo "[INFO] Components to migrate: ${COMPONENTS[@]}"
+endstage
 
-echo "[INFO] Create Weblate components"
+stage "Create Weblate components"
 create_weblate_components
+endstage
 
-echo "[INFO] Start Accuracy Test"
+stage "Start Accuracy Test"
 test_accuracy
+endstage
 
 # Clean
 echo "[INFO] Clean up workspace directory"
