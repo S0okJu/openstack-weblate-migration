@@ -49,7 +49,7 @@ function create_weblate_components {
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
                 --component $component \
-                --locale $locale 
+                --locale $locale || exit 1
             sleep 10
 
             echo "[INFO] Check plural forms..."
@@ -61,7 +61,7 @@ function create_weblate_components {
                 --category $ZANATA_VERSION \
                 --component $component \
                 --locale $locale \
-                --po-path $translation_path
+                --po-path $translation_path || exit 1
 
         done
 
