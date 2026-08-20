@@ -689,8 +689,11 @@ class WeblateUtils:
     ) -> None:
         """Upload a translation po file
 
-        This function will retry up to 3 times
-        for actually uploading.
+        Retries up to 3 times for anything other than success (200
+        with result=true) or a 4xx rejection. A 4xx response means the
+        server rejected this exact request - an identical retry would
+        fail the same way - so those exit immediately instead of
+        spending the retry budget.
 
         :param project_name: The name of the project
         :param category_name: The name of the category
@@ -717,8 +720,13 @@ class WeblateUtils:
                 data = {
                     'method': 'replace',
                 }
-                response = self._post(
-                    url=url, file=file, data=data, raise_error=True)
+                # raise_error is deliberately omitted here (unlike
+                # every other _post call in this class): with it set,
+                # _post exits the process on the first non-2xx
+                # response, so this loop never actually got a chance
+                # to retry. Handling the response ourselves is what
+                # makes retrying possible.
+                response = self._post(url=url, file=file, data=data)
 
                 # If the upload is successful, out of the loop.
                 if (response.status_code == 200 and
@@ -727,10 +735,29 @@ class WeblateUtils:
                           component_name, locale)
                     return
 
+                # Only a genuine 4xx means the server rejected this
+                # exact request - retrying identically cannot help.
+                # A 200 with result != True (e.g. nothing to import,
+                # or a transient lock) still goes through the normal
+                # retry path below, matching the pre-fix behavior for
+                # that case.
+                if 400 <= response.status_code < 500:
+                    print(f"[ERROR] Upload rejected "
+                          f"({response.status_code}), not retrying: "
+                          f"{response.text}")
+                    sys.exit(1)
+
+                if cnt + 1 == retry_count:
+                    break
+
+                print(f"[ERROR] Upload attempt {cnt + 1} failed "
+                      f"({response.status_code}), retrying: "
+                      f"{response.text}")
                 time.sleep(sleep_time)
 
-        print("[INFO] Upload failed: ",
-              json.dumps(response.json()))
+        print(f"[ERROR] Upload failed after {retry_count} attempts "
+              f"({response.status_code}): {response.text}")
+        sys.exit(1)
 
     def download_translation_file(
         self,
