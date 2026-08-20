@@ -18,16 +18,31 @@ import sys
 from zanata_plural_rules import ZANATA_LANG_RULES
 
 
-def check_lang_exist(lang_code: str) -> bool:
-    """Check if the language code exists in ZANATA_LANG_RULES."""
-    if lang_code not in ZANATA_LANG_RULES:
-        return False
+def get_lang_rules(base_lang_code: str, full_lang_code: str):
+    """Look up the ZANATA_LANG_RULES entry for a locale
 
-    if lang_code in ZANATA_LANG_RULES[lang_code]['region_code']:
-        return True
-    
-    return False
-    
+    Most locales are listed only under their base language's entry
+    (e.g. "en_GB" appears in ZANATA_LANG_RULES["en"]["region_code"]).
+    A few region variants have their own top-level entry instead,
+    used when their plural rules differ from the base language's
+    (e.g. "pt_BR" has different plural rules than "pt") - that entry
+    takes precedence when present.
+
+    :param base_lang_code: language part only, e.g. "en"
+    :param full_lang_code: full locale code, e.g. "en_GB"
+    :returns: the matching ZANATA_LANG_RULES entry, or None if
+        neither the full nor the base code is recognized
+    """
+    if full_lang_code in ZANATA_LANG_RULES:
+        return ZANATA_LANG_RULES[full_lang_code]
+
+    if base_lang_code in ZANATA_LANG_RULES:
+        region_codes = ZANATA_LANG_RULES[base_lang_code]['region_code']
+        if full_lang_code in region_codes:
+            return ZANATA_LANG_RULES[base_lang_code]
+
+    return None
+
 
 def main():
     if len(sys.argv) != 2:
@@ -54,9 +69,9 @@ def main():
     else:
         converted_lang_code = lang_code
     
-    print(f"[INFO] Check {lang_code} validation...")    
-    is_exist = check_lang_exist(converted_lang_code)
-    if not is_exist:
+    print(f"[INFO] Check {lang_code} validation...")
+    rules = get_lang_rules(lang_code, converted_lang_code)
+    if rules is None:
         print(f"[ERROR] {converted_lang_code} is invalid")
         sys.exit(1)
 
@@ -64,7 +79,7 @@ def main():
     po.metadata['Language'] = converted_lang_code
 
     # Compare plural rules
-    expected_plurals = ZANATA_LANG_RULES[lang_code]['plurals']
+    expected_plurals = rules['plurals']
     current_plurals = po.metadata['Plural-Forms']
     if expected_plurals != current_plurals:
         print(
