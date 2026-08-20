@@ -64,6 +64,29 @@ def sanitize_slug(name: str) -> str:
     return re.sub(r'-+', '-', re.sub(r'[^a-zA-Z0-9_-]', '-', name)).strip('-')
 
 
+def get_component_display_name(component_name: str) -> str:
+    """Get the Weblate-facing display name for a component
+
+    The internal component identifier is a flat, hyphen-joined string
+    (e.g. "horizon-django") used for slug/path construction throughout
+    this pipeline. For components representing a specific Django
+    module (<module>-django / <module>-djangojs), Weblate's 'name'
+    field should instead read like the original Zanata document name,
+    with '/' separating the module from its type (e.g.
+    "horizon/django"). The slug (URL/API identifier) still comes from
+    sanitize_slug() on the original hyphenated identifier and is
+    unaffected by this.
+
+    :param component_name: internal component identifier
+    :returns: display name to use for Weblate's 'name' field
+    """
+    if component_name.endswith('-django'):
+        return f'{component_name[:-len("-django")]}/django'
+    if component_name.endswith('-djangojs'):
+        return f'{component_name[:-len("-djangojs")]}/djangojs'
+    return component_name
+
+
 def get_filemask(component_name: str) -> str:
     """Get filemask for the component
 
@@ -594,7 +617,7 @@ class WeblateUtils:
                 ),
             }
             data = {
-                'name': component_name,
+                'name': get_component_display_name(component_name),
                 'slug': sanitize_slug(component_name),
                 'file_format': 'po',
                 'filemask': get_filemask(component_name),
