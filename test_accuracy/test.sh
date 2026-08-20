@@ -4,6 +4,10 @@ TEST_DIR=$HOME/$WORKSPACE_NAME/projects/$PROJECT/test
 RESULT_JSON=$HOME/$WORKSPACE_NAME/projects/$PROJECT/result.jsonl
 
 function test_accuracy {
+    # Set when any single locale's checks fail, so one bad locale is
+    # logged and skipped instead of aborting every remaining
+    # locale/component via `exit` (mirrors create_weblate_components.sh).
+    local had_failure=0
 
     if [ ! -d "$TEST_DIR" ]; then
         echo "[INFO] TEST_DIR does not exist. Create new one."
@@ -48,7 +52,8 @@ function test_accuracy {
                 --result-json $RESULT_JSON
             then
                 echo "[ERROR] Component/locale does not exist: $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
-                exit 1
+                had_failure=1
+                continue
             fi
 
             # Runs before the sentence count check (which fails
@@ -66,7 +71,8 @@ function test_accuracy {
                 --result-json $RESULT_JSON
             then
                 echo "[ERROR] Untranslated count increased (possible translation loss): $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
-                exit 1
+                had_failure=1
+                continue
             fi
 
             # Runs before the sentence count/detail checks (which stop
@@ -84,7 +90,8 @@ function test_accuracy {
                 --result-json $RESULT_JSON
             then
                 echo "[ERROR] Placeholder regression detected: $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
-                exit 1
+                had_failure=1
+                continue
             fi
 
             echo "[INFO] Step 4/6: Check the sentence count..."
@@ -98,7 +105,8 @@ function test_accuracy {
                 --result-json $RESULT_JSON
             then
                 echo "[ERROR] Check the sentence failed: $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
-                exit 1
+                had_failure=1
+                continue
             fi
 
             echo "[INFO] Step 5/6: Check the sentence detail..."
@@ -112,7 +120,8 @@ function test_accuracy {
                 --result-json $RESULT_JSON
             then
                 echo "[ERROR] Check the sentence detail failed: $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
-                exit 1
+                had_failure=1
+                continue
             fi
 
             echo "[INFO] Step 6/6: Check the PO format (msgfmt --check)..."
@@ -125,7 +134,8 @@ function test_accuracy {
                 --result-json $RESULT_JSON
             then
                 echo "[ERROR] PO format check failed: $PROJECT, $ZANATA_VERSION, $component, $locale, $weblate_po_path"
-                exit 1
+                had_failure=1
+                continue
             fi
 
         done
@@ -135,4 +145,8 @@ function test_accuracy {
     echo ""
 
     cd - > /dev/null
+
+    if [ "$had_failure" -eq 1 ]; then
+        return 1
+    fi
 }

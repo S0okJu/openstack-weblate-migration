@@ -137,11 +137,26 @@ echo "[INFO] Components to migrate: ${COMPONENTS[@]}"
 endstage
 
 stage "Create Weblate components"
-create_weblate_components
+# Kept as a flag rather than exiting immediately: a partial failure
+# here (one bad component/locale) should not skip the accuracy test
+# or workspace cleanup for everything that *did* succeed. The final
+# exit code below still reflects the failure.
+component_migration_failed=0
+if ! create_weblate_components; then
+    colorize "$RED" "[ERROR] One or more components/locales failed to migrate"
+    component_migration_failed=1
+fi
 endstage
 
 stage "Start Accuracy Test"
-test_accuracy
+# Same reasoning as component_migration_failed above: one locale's
+# check failing should not skip cleanup or hide the results of every
+# other locale/component that passed.
+accuracy_test_failed=0
+if ! test_accuracy; then
+    colorize "$RED" "[ERROR] One or more components/locales failed accuracy testing"
+    accuracy_test_failed=1
+fi
 endstage
 
 # Clean
@@ -150,4 +165,8 @@ echo "[INFO] Clean up workspace directory"
 # TODO: Create code for cleanup all projects.
 rm -rf $HOME/$WORKSPACE_NAME/projects/pot
 rm -rf $HOME/$WORKSPACE_NAME/projects/translations
+
+if [ "$component_migration_failed" -eq 1 ] || [ "$accuracy_test_failed" -eq 1 ]; then
+    exit 1
+fi
 exit 0
