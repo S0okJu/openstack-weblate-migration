@@ -24,6 +24,7 @@ import subprocess
 import sys
 import time
 import traceback
+from typing import Callable
 from urllib.parse import urljoin
 import zipfile
 import polib
@@ -62,6 +63,29 @@ def sanitize_slug(name: str) -> str:
     :returns: string sanitized name
     """
     return re.sub(r'-+', '-', re.sub(r'[^a-zA-Z0-9_-]', '-', name)).strip('-')
+
+
+def is_retryable_status(status_code: int) -> bool:
+    """Whether a response status code is worth retrying
+
+    Meant to be called only after the caller's own success check has
+    already failed for this response. A non-4xx code reaching that
+    point (e.g. upload_po_file's 200 with result=false) isn't a
+    rejection, so it's worth retrying, same as a 5xx (server-side,
+    usually transient) failure. 423 (Weblate could not obtain its
+    internal repository lock - e.g. another write to the same
+    component was still in progress) and 429 (rate limited) are also
+    transient despite being in the 4xx range: the condition they
+    describe is expected to clear on its own shortly. Any other 4xx
+    means the server rejected this exact request, so an identical
+    retry cannot succeed.
+
+    :param status_code: HTTP status code from a Weblate API response
+    :returns: True if retrying the same request may succeed later
+    """
+    if status_code < 400 or status_code >= 500:
+        return True
+    return status_code in (423, 429)
 
 
 def get_component_display_name(component_name: str) -> str:
@@ -427,6 +451,62 @@ class WeblateUtils:
                 print(f"[ERROR] Response: {e.response.text}")
             sys.exit(1)
 
+    def _post_with_retry(
+        self,
+        url: str,
+        success: Callable[[requests.Response], bool],
+        build_kwargs: Callable[[], dict],
+        action: str,
+        retry_count: int = 3,
+        sleep_time: int = 15,
+    ) -> requests.Response:
+        """POST with retry for transient failures
+
+        Retries up to retry_count times when the response fails
+        `success` but its status is retryable (see
+        is_retryable_status - 5xx, 423 repository-locked, 429 rate
+        limited, or any non-4xx that still didn't count as success).
+        A genuine 4xx rejection, or exhausting all retries, exits the
+        process - callers rely on this instead of checking a return
+        value.
+
+        :param url: request URL
+        :param success: predicate(response) -> True if this attempt
+            should be treated as successful
+        :param build_kwargs: called fresh before every attempt to
+            build this attempt's `data`/`file` kwargs for `_post` -
+            needed because a file-like request body (e.g. a zip
+            buffer) is consumed once sent, so callers must rebuild or
+            re-seek it for each retry
+        :param action: short label for this operation, used in log
+            and error messages (e.g. "Create component")
+        :returns: the successful response
+        """
+        assert retry_count >= 1, "retry_count must allow at least one attempt"
+        for cnt in range(retry_count):
+            response = self._post(url=url, **build_kwargs())
+
+            if success(response):
+                return response
+
+            if not is_retryable_status(response.status_code):
+                print(f"[ERROR] {action} rejected "
+                      f"({response.status_code}), not retrying: "
+                      f"{response.text}")
+                sys.exit(1)
+
+            if cnt + 1 == retry_count:
+                break
+
+            print(f"[ERROR] {action} attempt {cnt + 1} failed "
+                  f"({response.status_code}), retrying: "
+                  f"{response.text}")
+            time.sleep(sleep_time)
+
+        print(f"[ERROR] {action} failed after {retry_count} attempts "
+              f"({response.status_code}): {response.text}")
+        sys.exit(1)
+
     def _build_category_list(self, project_name: str) -> dict:
         """Get category list for the project
 
@@ -569,7 +649,10 @@ class WeblateUtils:
     ) -> None:
         """Create a new component
 
-        If the component does not exist, create a new one.
+        If the component does not exist, create a new one. Retries
+        up to 3 times if Weblate could not obtain its internal
+        repository lock (423) or rate-limited us (429) - see
+        is_retryable_status.
 
         :param project_name: The name of the project
         :param category_name: The name of the category
@@ -585,55 +668,68 @@ class WeblateUtils:
 
         if response.status_code == 200:
             print("[INFO] Component already exists: ", component_name)
-        elif response.status_code == 404:
-            print("[INFO] Component does not exist: ", component_name)
-
-            path = f'projects/{sanitize_slug(project_name)}/components/'
-            url = urljoin(self.base_url, path)
-            category_id = self._get_category_id(project_name, category_name)
-            category_url = urljoin(
-                self.base_url,
-                f"categories/{category_id}/")
-
-            # Create a zip file containing the pot file for Weblate
-            # component initialization. new_base must match the
-            # arcname written below exactly, since Weblate looks for
-            # that filename inside the uploaded zip - for suffixed
-            # components (e.g. "horizon-django", whose pot file is
-            # generated as plain "django.pot") that name differs from
-            # f"{component_name}.pot".
-            pot_filename = os.path.basename(pot_path)
-            zip_buf = io.BytesIO()
-            with zipfile.ZipFile(
-                    zip_buf, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                zip_file.write(pot_path, pot_filename)
-            # Set the pointer to the beginning of the zip for uploading.
-            zip_buf.seek(0)
-            file = {
-                'zipfile': (
-                    f'{component_name}.zip',
-                    zip_buf,
-                    'application/zip',
-                ),
-            }
-            data = {
-                'name': get_component_display_name(component_name),
-                'slug': sanitize_slug(component_name),
-                'file_format': 'po',
-                'filemask': get_filemask(component_name),
-                'repo': 'local:',
-                'vcs': 'local',
-                'source_language': 'en_US',
-                'new_base': pot_filename,
-                'category': category_url,
-            }
-            _ = self._post(url=url, data=data, file=file, raise_error=True)
-
-            print("[INFO] Component created: ", component_name)
-        else:
+            return
+        if response.status_code != 404:
             print("[ERROR] Failed to create component: ",
                   json.dumps(response.json()))
             sys.exit(1)
+
+        print("[INFO] Component does not exist: ", component_name)
+
+        path = f'projects/{sanitize_slug(project_name)}/components/'
+        url = urljoin(self.base_url, path)
+        category_id = self._get_category_id(project_name, category_name)
+        category_url = urljoin(
+            self.base_url,
+            f"categories/{category_id}/")
+
+        # Create a zip file containing the pot file for Weblate
+        # component initialization. new_base must match the arcname
+        # written below exactly, since Weblate looks for that
+        # filename inside the uploaded zip - for suffixed components
+        # (e.g. "horizon-django", whose pot file is generated as
+        # plain "django.pot") that name differs from
+        # f"{component_name}.pot".
+        pot_filename = os.path.basename(pot_path)
+        zip_buf = io.BytesIO()
+        with zipfile.ZipFile(
+                zip_buf, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            zip_file.write(pot_path, pot_filename)
+        data = {
+            'name': get_component_display_name(component_name),
+            'slug': sanitize_slug(component_name),
+            'file_format': 'po',
+            'filemask': get_filemask(component_name),
+            'repo': 'local:',
+            'vcs': 'local',
+            'source_language': 'en_US',
+            'new_base': pot_filename,
+            'category': category_url,
+        }
+
+        def build_kwargs():
+            # Rewind before every attempt: requests reads the buffer
+            # to EOF while sending it, so a retry with an unseeked
+            # buffer would upload an empty zip.
+            zip_buf.seek(0)
+            return {
+                'data': data,
+                'file': {
+                    'zipfile': (
+                        f'{component_name}.zip',
+                        zip_buf,
+                        'application/zip',
+                    ),
+                },
+            }
+
+        self._post_with_retry(
+            url=url,
+            success=lambda r: r.status_code == 201,
+            build_kwargs=build_kwargs,
+            action='Create component',
+        )
+        print("[INFO] Component created: ", component_name)
 
     def create_translation(
             self,
@@ -644,7 +740,12 @@ class WeblateUtils:
     ) -> None:
         """Create a new translation
 
-        If the translation does not exist, create a new one.
+        If the translation does not exist, create a new one. Retries
+        up to 3 times if Weblate could not obtain its internal
+        repository lock (423) or rate-limited us (429) - see
+        is_retryable_status - since those are expected to clear on
+        their own shortly (e.g. another write to the same component
+        was still in progress).
 
         :param project_name: The name of the project
         :param category_name: The name of the category
@@ -662,22 +763,28 @@ class WeblateUtils:
 
         if response.status_code == 200:
             print("[INFO] Translation already exists: ", locale)
-        elif response.status_code == 404:
-            path = (f'components/{sanitize_slug(project_name)}/'
-                    f'{sanitize_slug(category_name)}%252F'
-                    f'{sanitize_slug(component_name)}/'
-                    f'translations/')
-            url = urljoin(self.base_url, path)
-            data = {
-                'language_code': locale,
-            }
-            _ = self._post(url=url, data=data, raise_error=True)
-
-            print("[INFO] Translation created: ", locale)
-        else:
+            return
+        if response.status_code != 404:
             print("[ERROR] Failed to create translation: ",
                   json.dumps(response.json()))
             sys.exit(1)
+
+        path = (f'components/{sanitize_slug(project_name)}/'
+                f'{sanitize_slug(category_name)}%252F'
+                f'{sanitize_slug(component_name)}/'
+                f'translations/')
+        url = urljoin(self.base_url, path)
+        data = {
+            'language_code': locale,
+        }
+
+        self._post_with_retry(
+            url=url,
+            success=lambda r: r.status_code == 201,
+            build_kwargs=lambda: {'data': data},
+            action='Create translation',
+        )
+        print("[INFO] Translation created: ", locale)
 
     def upload_po_file(
         self,
@@ -690,10 +797,10 @@ class WeblateUtils:
         """Upload a translation po file
 
         Retries up to 3 times for anything other than success (200
-        with result=true) or a 4xx rejection. A 4xx response means the
-        server rejected this exact request - an identical retry would
-        fail the same way - so those exit immediately instead of
-        spending the retry budget.
+        with result=true) or a non-retryable rejection (see
+        is_retryable_status - most 4xx codes mean the server rejected
+        this exact request, so an identical retry cannot help and
+        those exit immediately instead of spending the retry budget).
 
         :param project_name: The name of the project
         :param category_name: The name of the category
@@ -702,62 +809,29 @@ class WeblateUtils:
         :param po_path: The path to the po file
         """
 
-        retry_count = 3
         locale = sanitize_locale(locale)
         path = (f'translations/{sanitize_slug(project_name)}/'
                 f'{sanitize_slug(category_name)}%252F'
                 f'{sanitize_slug(component_name)}/'
                 f'{locale}/file/')
         url = urljoin(self.base_url, path)
-        for cnt in range(retry_count):
-            sleep_time = 15
-            print(f"[INFO] Uploading PO file: {po_path}, "
-                  f"Retry count: {cnt + 1}")
-            with open(po_path, 'rb') as f:
-                file = {
-                    'file': f,
-                }
-                data = {
-                    'method': 'replace',
-                }
-                # raise_error is deliberately omitted here (unlike
-                # every other _post call in this class): with it set,
-                # _post exits the process on the first non-2xx
-                # response, so this loop never actually got a chance
-                # to retry. Handling the response ourselves is what
-                # makes retrying possible.
-                response = self._post(url=url, file=file, data=data)
+        print(f"[INFO] Uploading PO file: {po_path}")
+        with open(po_path, 'rb') as f:
+            def build_kwargs():
+                # Rewind before every attempt: requests reads the
+                # file to EOF while sending it, so a retry without
+                # this would upload an empty file.
+                f.seek(0)
+                return {'file': {'file': f}, 'data': {'method': 'replace'}}
 
-                # If the upload is successful, out of the loop.
-                if (response.status_code == 200 and
-                        response.json()['result'] is True):
-                    print("[INFO] Upload successful: ",
-                          component_name, locale)
-                    return
-
-                # Only a genuine 4xx means the server rejected this
-                # exact request - retrying identically cannot help.
-                # A 200 with result != True (e.g. nothing to import,
-                # or a transient lock) still goes through the normal
-                # retry path below, matching the pre-fix behavior for
-                # that case.
-                if 400 <= response.status_code < 500:
-                    print(f"[ERROR] Upload rejected "
-                          f"({response.status_code}), not retrying: "
-                          f"{response.text}")
-                    sys.exit(1)
-
-                if cnt + 1 == retry_count:
-                    break
-
-                print(f"[ERROR] Upload attempt {cnt + 1} failed "
-                      f"({response.status_code}), retrying: "
-                      f"{response.text}")
-                time.sleep(sleep_time)
-
-        print(f"[ERROR] Upload failed after {retry_count} attempts "
-              f"({response.status_code}): {response.text}")
-        sys.exit(1)
+            self._post_with_retry(
+                url=url,
+                success=lambda r: (
+                    r.status_code == 200 and r.json()['result'] is True),
+                build_kwargs=build_kwargs,
+                action='Upload',
+            )
+        print("[INFO] Upload successful: ", component_name, locale)
 
     def download_translation_file(
         self,
