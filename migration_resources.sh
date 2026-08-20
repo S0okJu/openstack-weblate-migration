@@ -36,6 +36,15 @@ source $SCRIPTSDIR/migration/pretty-printer.sh
 # We need a UTF-8 locale, set it properly in case it's not set.
 export LANG=en_US.UTF-8
 
+# All opendev.org projects this script clones are public - a git clone
+# should never legitimately need credentials. Without this, a typo'd
+# or missing project name makes opendev.org's Gitea return 401 (it
+# can't tell "doesn't exist" from "private, no access" and asks git to
+# authenticate to check), and git blocks forever on a username prompt
+# with no TTY behind it. Disabling terminal prompts turns that hang
+# into an immediate, clearly logged clone failure instead.
+export GIT_TERMINAL_PROMPT=0
+
 # You should set WEBLATE_URL and WEBLATE_TOKEN
 # system environment variables.
 echo "[INFO] Check variables"
