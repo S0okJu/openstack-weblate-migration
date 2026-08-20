@@ -94,6 +94,51 @@ def get_version_name(version: str) -> str:
     return version.replace('/', '-')
 
 
+# Matches printf-style placeholders, including flag/width/precision
+# modifiers (%s, %d, %(name)s, %(name)3d, %.2f, ...), and str.format-
+# style placeholders ({}, {0}, {name}, {name!r}, ...). The space flag
+# (e.g. "% d") is deliberately excluded from the flag characters below
+# - unlike '-'/'+'/'0'/'#', which rarely appear right after a literal
+# '%' in ordinary prose, a bare "% " is extremely common in natural
+# text (e.g. "100% done"), so including it would misdetect ordinary
+# sentences as placeholders far more often than it would catch a
+# genuine space-flag placeholder, which is rare in practice.
+#
+# The trailing conversion character is restricted to Python's actual
+# %-formatting conversion types (diouxXeEfFgGcrs%) rather than any
+# letter - a bare [a-zA-Z] also matches width-digits-then-letter
+# sequences that happen to appear in percent-encoded URLs in source
+# text (e.g. "%3A", "%5B" - neither 'A' nor 'B' is a real conversion
+# type, so this whitelist stops them from being misread as
+# placeholders).
+_PRINTF_MODIFIERS = (
+    r'[-+0#]*(?:\d+|\*)?(?:\.(?:\d+|\*))?[diouxXeEfFgGcrs%]'
+)
+_PLACEHOLDER_RE = re.compile(
+    r'%\([a-zA-Z_][a-zA-Z0-9_]*\)' + _PRINTF_MODIFIERS +
+    r'|%' + _PRINTF_MODIFIERS +
+    r'|\{[^{}]*\}'
+)
+
+
+def extract_placeholders(text: str) -> list:
+    """Extract printf-style/str.format-style placeholder tokens from text.
+
+    %% and {{/}} are the printf/str.format escapes for a literal '%',
+    '{', '}' (e.g. "10%%s off" renders as the literal text "10%s off",
+    not a %s placeholder) - replaced with a sentinel first so an
+    escaped literal isn't mistaken for the start of a real placeholder.
+
+    :param text: string to scan for placeholders
+    :returns: list of placeholder substrings found, e.g. ['%s', '{name}']
+    """
+    if not text:
+        return []
+    unescaped = text.replace('%%', '\x00').replace(
+        '{{', '\x00').replace('}}', '\x00')
+    return _PLACEHOLDER_RE.findall(unescaped)
+
+
 def load_result_events(result_jsonl_path) -> list:
     """Read a result JSON Lines log written by WeblateUtils._save_result.
 
@@ -157,13 +202,14 @@ def reduce_result_events(events) -> dict:
         })
         results[key] = entry
 
-    # existence_status/fuzzy_status/count_status/detail_status/
-    # format_status are only set by check_translation_existence/
-    # check_fuzzy_untranslated/check_sentence_count/
+    # existence_status/fuzzy_status/placeholder_status/count_status/
+    # detail_status/format_status are only set by
+    # check_translation_existence/check_fuzzy_untranslated/
+    # check_placeholder_consistency/check_sentence_count/
     # check_sentence_detail/check_po_format respectively, when that
     # check actually runs. Deriving "pass" from count_errors/
     # detail_errors being empty would be wrong here: an entry that has
-    # never had one of the five checks run against it also has an
+    # never had one of the six checks run against it also has an
     # empty error list for that check, which is not the same as having
     # passed it.
     #
@@ -176,11 +222,12 @@ def reduce_result_events(events) -> dict:
     for entry in results.values():
         existence_status = entry.get('existence_status')
         fuzzy_status = entry.get('fuzzy_status')
+        placeholder_status = entry.get('placeholder_status')
         count_status = entry.get('count_status')
         detail_status = entry.get('detail_status')
         format_status = entry.get('format_status')
-        statuses = (existence_status, fuzzy_status, count_status,
-                    detail_status, format_status)
+        statuses = (existence_status, fuzzy_status, placeholder_status,
+                    count_status, detail_status, format_status)
         if 'fail' in statuses:
             entry['status'] = 'fail'
         elif None in statuses:
@@ -747,6 +794,10 @@ class WeblateUtils:
                 fuzzy_increase=None,
                 untranslated_increase=None,
                 fuzzy_errors=[],
+                placeholder_status=None,
+                placeholder_checked=None,
+                placeholder_mismatches=None,
+                placeholder_errors=[],
                 count_status=None,
                 total_zanata=None,
                 total_weblate=None,
@@ -860,10 +911,15 @@ class WeblateUtils:
                 project_name, category_name, component_name, locale,
                 fuzzy_status='fail',
                 **fuzzy_fields,
-                # Count/detail/format cannot run this pass. Reset
-                # their status explicitly so a stale pass/fail left
-                # over from an earlier successful run of this same
-                # key doesn't linger next to today's fuzzy failure.
+                # Placeholder/count/detail/format cannot run this
+                # pass. Reset their status explicitly so a stale
+                # pass/fail left over from an earlier successful run
+                # of this same key doesn't linger next to today's
+                # fuzzy failure.
+                placeholder_status=None,
+                placeholder_checked=None,
+                placeholder_mismatches=None,
+                placeholder_errors=[],
                 count_status=None,
                 total_zanata=None,
                 total_weblate=None,
@@ -890,6 +946,192 @@ class WeblateUtils:
             project_name, category_name, component_name, locale,
             fuzzy_status='pass',
             **fuzzy_fields,
+        )
+
+        return True
+
+    def check_placeholder_consistency(
+        self,
+        project_name: str,
+        category_name: str,
+        component_name: str,
+        locale: str,
+        zanata_po_path: str,
+        weblate_po_path: str,
+    ) -> bool:
+        """Check that printf/str.format placeholders survive migration.
+
+        check_sentence_detail already flags whether Zanata and Weblate
+        msgstr differ, but not why a difference matters. A placeholder
+        (%s, %(name)s, {name}, ...) dropped or mangled during
+        migration still counts as "translated", but breaks string
+        formatting at runtime - a much higher-severity class of
+        mismatch than a wording difference. For entries whose source
+        (msgid/msgid_plural) contains at least one placeholder, this
+        compares the placeholder set actually present in the Zanata
+        translation against the one in the Weblate translation and
+        fails if they differ, isolating that specific failure mode
+        out of check_sentence_detail's generic mismatch signal.
+
+        This deliberately compares Zanata's translation directly to
+        Weblate's, not each side to the English source: gettext plural
+        rules mean a language can have a different number of plural
+        forms than the two (singular/plural) English source strings,
+        so there is no reliable way to say which of msgid/msgid_plural
+        a given translated form "should" match. Comparing Zanata to
+        Weblate at the same plural index sidesteps that ambiguity
+        entirely and stays consistent with this project's baseline:
+        Zanata is the source of truth Weblate must match, for
+        placeholders exactly as for everything else check_sentence_*
+        already compares.
+
+        :param project_name: Name of the project
+        :param category_name: Name of the category
+        :param component_name: Name of the component
+        :param locale: Name of the locale
+        :param zanata_po_path: Path to the zanata po file
+        :param weblate_po_path: Path to the weblate po file
+        :returns: True unless a placeholder-set mismatch was found
+        """
+        zanata_po = polib.pofile(zanata_po_path, encoding='utf-8')
+        weblate_po = polib.pofile(weblate_po_path, encoding='utf-8')
+
+        zanata_entries = [e for e in zanata_po if not e.obsolete]
+        weblate_entries = [e for e in weblate_po if not e.obsolete]
+        weblate_dict = {
+            (entry.msgid, entry.msgctxt): entry for entry in weblate_entries
+        }
+
+        checked_count = 0
+        errors = []
+
+        for zanata_entry in zanata_entries:
+            msgid = zanata_entry.msgid
+            msgctxt = zanata_entry.msgctxt
+            weblate_entry = weblate_dict.get((msgid, msgctxt))
+            # A missing/extra entry is check_sentence_detail's job to
+            # report, not this check's.
+            if weblate_entry is None:
+                continue
+
+            has_placeholder = (
+                extract_placeholders(msgid) or
+                extract_placeholders(zanata_entry.msgid_plural)
+            )
+            if not has_placeholder:
+                continue
+
+            # Fuzzy/untranslated entries have no finished content to
+            # judge placeholder-preservation on - that gap is
+            # check_fuzzy_untranslated's and check_sentence_count's
+            # job, not this check's.
+            if not (zanata_entry.translated() and
+                    weblate_entry.translated()):
+                continue
+
+            checked_count += 1
+
+            if zanata_entry.msgid_plural:
+                common_indices = sorted(
+                    zanata_entry.msgstr_plural.keys() &
+                    weblate_entry.msgstr_plural.keys()
+                )
+                if not common_indices:
+                    # No overlapping plural-form index to compare at
+                    # all (check_sentence_detail separately reports
+                    # this as a "Plural form count mismatch"). Without
+                    # this, an entry here would silently count as
+                    # "checked" with zero placeholder mismatches even
+                    # though none of Weblate's plural forms could
+                    # actually be verified against Zanata's.
+                    error_msg = (
+                        f"Placeholder mismatch for msgid: '{msgid}' "
+                        f"msgctxt: '{msgctxt}' - no common plural "
+                        f"form indices between Zanata "
+                        f"({sorted(zanata_entry.msgstr_plural.keys())}) "
+                        f"and Weblate "
+                        f"({sorted(weblate_entry.msgstr_plural.keys())}) "
+                        f"to compare"
+                    )
+                    print(f"[ERROR] {error_msg}")
+                    errors.append(error_msg)
+                    continue
+                units = [
+                    (
+                        f'index {index}',
+                        sorted(extract_placeholders(
+                            zanata_entry.msgstr_plural[index])),
+                        sorted(extract_placeholders(
+                            weblate_entry.msgstr_plural[index])),
+                    )
+                    for index in common_indices
+                ]
+            else:
+                units = [(
+                    None,
+                    sorted(extract_placeholders(zanata_entry.msgstr)),
+                    sorted(extract_placeholders(weblate_entry.msgstr)),
+                )]
+
+            # Compared as sorted lists, not sets, so that losing one
+            # of several repeated occurrences of the same placeholder
+            # (e.g. "Copied %s to %s" -> only one %s survives) is
+            # still caught - a set comparison would collapse both
+            # sides to {'%s'} and miss it.
+            for unit_label, zanata_actual, weblate_actual in units:
+                if zanata_actual == weblate_actual:
+                    continue
+                location = f" {unit_label}" if unit_label else ""
+                error_msg = (
+                    f"Placeholder mismatch for msgid: '{msgid}' "
+                    f"msgctxt: '{msgctxt}'{location} - Zanata msgstr "
+                    f"placeholders: {zanata_actual} - Weblate "
+                    f"msgstr placeholders: {weblate_actual}"
+                )
+                print(f"[ERROR] {error_msg}")
+                errors.append(error_msg)
+
+        placeholder_fields = {
+            'placeholder_checked': checked_count,
+            'placeholder_mismatches': len(errors),
+            'placeholder_errors': errors,
+        }
+
+        if errors:
+            self._save_result(
+                project_name, category_name, component_name, locale,
+                placeholder_status='fail',
+                **placeholder_fields,
+                # Count/detail/format cannot run this pass. Reset
+                # their status explicitly so a stale pass/fail left
+                # over from an earlier successful run of this same
+                # key doesn't linger next to today's placeholder
+                # failure.
+                count_status=None,
+                total_zanata=None,
+                total_weblate=None,
+                translated_zanata=None,
+                translated_weblate=None,
+                count_errors=[],
+                detail_status=None,
+                total_entries=None,
+                mismatch_count=None,
+                missing_count=None,
+                extra_count=None,
+                detail_errors=[],
+                format_status=None,
+                format_errors=[],
+            )
+            return False
+
+        print(
+            f"[INFO] ✓ No placeholder mismatches "
+            f"({checked_count} entries with placeholders checked)"
+        )
+        self._save_result(
+            project_name, category_name, component_name, locale,
+            placeholder_status='pass',
+            **placeholder_fields,
         )
 
         return True
@@ -1367,6 +1609,26 @@ def setup_argument_parser():
     check_fuzzy_untranslated_parser.add_argument(
         '--result-json', required=False,
         help='Path to result JSON Lines log (append-only)')
+    # Check placeholder consistency command
+    check_placeholder_consistency_parser = subparser.add_parser(
+        'check-placeholder-consistency',
+        help='Check that printf/str.format placeholders in the source '
+             'survive translation on both sides')
+    check_placeholder_consistency_parser.add_argument(
+        '--project', required=True, help='Name of the project')
+    check_placeholder_consistency_parser.add_argument(
+        '--category', required=True, help='Name of the category')
+    check_placeholder_consistency_parser.add_argument(
+        '--component', required=True, help='Name of the component')
+    check_placeholder_consistency_parser.add_argument(
+        '--locale', required=True, help='Name of the locale')
+    check_placeholder_consistency_parser.add_argument(
+        '--zanata-po-path', required=True, help='Path to the zanata po file')
+    check_placeholder_consistency_parser.add_argument(
+        '--weblate-po-path', required=True, help='Path to weblate po')
+    check_placeholder_consistency_parser.add_argument(
+        '--result-json', required=False,
+        help='Path to result JSON Lines log (append-only)')
     # Check sentence count command
     check_sentence_count_parser = subparser.add_parser(
         'check-sentence-count', help='Check the sentence count of the translation')
@@ -1468,6 +1730,12 @@ def main():
                 sys.exit(1)
         elif args.command == 'check-fuzzy-untranslated':
             passed = utils.check_fuzzy_untranslated(
+                args.project, args.category, args.component, args.locale,
+                args.zanata_po_path, args.weblate_po_path)
+            if not passed:
+                sys.exit(1)
+        elif args.command == 'check-placeholder-consistency':
+            passed = utils.check_placeholder_consistency(
                 args.project, args.category, args.component, args.locale,
                 args.zanata_po_path, args.weblate_po_path)
             if not passed:

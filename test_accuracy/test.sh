@@ -37,7 +37,7 @@ function test_accuracy {
             local version_dir=${ZANATA_VERSION//./-}
             local weblate_po_path=$(get_po_path $component $locale $TEST_DIR/$PROJECT/$version_dir true)
 
-            echo "[INFO] Step 1/5: Check the component/locale existence..."
+            echo "[INFO] Step 1/6: Check the component/locale existence..."
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-translation-existence \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
@@ -55,7 +55,7 @@ function test_accuracy {
             # outright on any translated-count difference) so this
             # classification - fuzzy re-marking vs possible real loss
             # - is always recorded to help triage that failure.
-            echo "[INFO] Step 2/5: Check fuzzy/untranslated counts..."
+            echo "[INFO] Step 2/6: Check fuzzy/untranslated counts..."
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-fuzzy-untranslated \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
@@ -69,7 +69,25 @@ function test_accuracy {
                 exit 1
             fi
 
-            echo "[INFO] Step 3/5: Check the sentence count..."
+            # Runs before the sentence count/detail checks (which stop
+            # the batch on the first content difference) so a
+            # placeholder regression is always classified and recorded
+            # even if those later checks fail on the same entries.
+            echo "[INFO] Step 3/6: Check placeholder consistency..."
+            if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-placeholder-consistency \
+                --project $PROJECT \
+                --category $ZANATA_VERSION \
+                --component $component \
+                --locale $locale \
+                --zanata-po-path $translation_path \
+                --weblate-po-path $weblate_po_path \
+                --result-json $RESULT_JSON
+            then
+                echo "[ERROR] Placeholder regression detected: $PROJECT, $ZANATA_VERSION, $component, $locale, $translation_path"
+                exit 1
+            fi
+
+            echo "[INFO] Step 4/6: Check the sentence count..."
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-count \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
@@ -83,7 +101,7 @@ function test_accuracy {
                 exit 1
             fi
 
-            echo "[INFO] Step 4/5: Check the sentence detail..."
+            echo "[INFO] Step 5/6: Check the sentence detail..."
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-sentence-detail \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
@@ -97,7 +115,7 @@ function test_accuracy {
                 exit 1
             fi
 
-            echo "[INFO] Step 5/5: Check the PO format (msgfmt --check)..."
+            echo "[INFO] Step 6/6: Check the PO format (msgfmt --check)..."
             if ! python3 -u $SCRIPTSDIR/common/weblate_utils.py check-po-format \
                 --project $PROJECT \
                 --category $ZANATA_VERSION \
