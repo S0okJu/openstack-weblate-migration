@@ -573,12 +573,17 @@ class WeblateUtils:
                 f"categories/{category_id}/")
 
             # Create a zip file containing the pot file for Weblate
-            # component initialization.
-            # The new_base parameter will be set to the pot file name.
+            # component initialization. new_base must match the
+            # arcname written below exactly, since Weblate looks for
+            # that filename inside the uploaded zip - for suffixed
+            # components (e.g. "horizon-django", whose pot file is
+            # generated as plain "django.pot") that name differs from
+            # f"{component_name}.pot".
+            pot_filename = os.path.basename(pot_path)
             zip_buf = io.BytesIO()
             with zipfile.ZipFile(
                     zip_buf, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                zip_file.write(pot_path, os.path.basename(pot_path))
+                zip_file.write(pot_path, pot_filename)
             # Set the pointer to the beginning of the zip for uploading.
             zip_buf.seek(0)
             file = {
@@ -596,7 +601,7 @@ class WeblateUtils:
                 'repo': 'local:',
                 'vcs': 'local',
                 'source_language': 'en_US',
-                'new_base': f'{component_name}.pot',
+                'new_base': pot_filename,
                 'category': category_url,
             }
             _ = self._post(url=url, data=data, file=file, raise_error=True)
